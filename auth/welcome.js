@@ -121,7 +121,6 @@ async function handleSignup(e) {
     const emailInput = document.getElementById('signup-email');
     const passwordInput = document.getElementById('signup-password');
     
-    // Validate inputs
     if (!restaurantInput.value.trim() || !emailInput.value.trim() || !passwordInput.value) {
         showError('Please fill in all fields.');
         return;
@@ -140,98 +139,42 @@ async function handleSignup(e) {
         const restaurantName = restaurantInput.value.trim();
         const password = passwordInput.value;
         
-        // Create auth user
+        // Step 1: Create auth user ONLY
         const { data: authData, error: authError } = await supabase.auth.signUp({
             email: email,
-            password: password,
-            options: {
-                data: {
-                    restaurant_name: restaurantName,
-                    role_type: 'owner'
-                }
-            }
+            password: password
         });
         
         if (authError) throw authError;
+        if (!authData.user) throw new Error('Failed to create account');
         
-        if (!authData.user) {
-            throw new Error('Failed to create user account. Please try again.');
-        }
+        // Step 2: Call database function to create restaurant atomically
+        const { data: result, error: dbError } = await supabase.rpc(
+            'create_restaurant_with_owner',
+            {
+                p_email: email,
+                p_restaurant_name: restaurantName,
+                p_subscription_tier: selectedPlan
+            }
+        );
         
-        // Generate unique slug for restaurant
-        const baseSlug = createSlug(restaurantName);
-        const uniqueId = Date.now().toString(36) + Math.random().toString(36).substr(2, 5);
-        const uniqueSlug = `${baseSlug}-${uniqueId}`;
-        
-        // Determine subscription status based on selected plan
-        const subscriptionStatus = selectedPlan === 'free' ? 'free' : 'pending';
-        
-        // Create restaurant with owner email in authorized_emails
-        const { data: restaurant, error: restaurantError } = await supabase
-            .from('restaurants')
-            .insert([{
-                owner_id: authData.user.id,
-                name: restaurantName,
-                slug: uniqueSlug,
-                subscription_status: subscriptionStatus,
-                subscription_tier: selectedPlan,
-                subscription_ends_at: null,
-                authorized_emails: [email], // Add owner email to authorized list
-                created_at: new Date().toISOString()
-            }])
-            .select()
-            .single();
-        
-        if (restaurantError) {
-            console.error('Restaurant creation error:', restaurantError);
-            // Try to clean up the auth user
+        if (dbError || !result.success) {
+            // Cleanup: delete auth user via admin API
+            // Since we can't delete from client, inform user
             await supabase.auth.signOut();
-            throw new Error('Failed to create restaurant. Please contact support.');
+            throw new Error(result.error || 'Failed to create restaurant. Please contact support with this email: ' + email);
         }
         
-        // Create owner role
-        const { error: roleError } = await supabase
-            .from('user_roles')
-            .insert([{
-                user_id: authData.user.id,
-                restaurant_id: restaurant.id,
-                role: 'owner',
-                created_at: new Date().toISOString()
-            }]);
-        
-        if (roleError) {
-            console.error('Role creation error:', roleError);
-            // Don't fail - role might be created by database trigger
-        }
-        
-        // Create default draft loyalty card
-        await supabase
-            .from('loyalty_cards')
-            .insert([{
-                restaurant_id: restaurant.id,
-                display_name: restaurantName,
-                stamps_required: 10,
-                reward_text: 'Free Item',
-                card_color: '#7c5ce6',
-                text_color: '#FFFFFF',
-                is_active: false,
-                campaign_status: 'draft'
-            }]);
-        
-        // Store restaurant data
-        sessionStorage.setItem('restaurant', JSON.stringify(restaurant));
+        // Success!
         sessionStorage.setItem('userRole', 'owner');
         sessionStorage.setItem('selectedPlan', selectedPlan);
         
         showSuccess('Account created successfully!');
         
-        // Redirect based on plan
         setTimeout(() => {
             if (needsCheckout && selectedPlan !== 'free') {
-                // Redirect to Stripe checkout
-                createStripeCheckout(selectedPlan, restaurant.id);
+                createStripeCheckout(selectedPlan, result.restaurant_id);
             } else {
-                // Redirect to dashboard
                 window.location.href = '/dashboard/index.html';
             }
         }, 1000);
@@ -245,7 +188,6 @@ async function handleSignup(e) {
         submitBtn.disabled = false;
     }
 }
-
 /**
  * Handle login
  */
