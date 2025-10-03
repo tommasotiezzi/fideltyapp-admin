@@ -5,8 +5,8 @@ let placesSearchTimeout = null;
 let placesAutocompleteSession = null;
 
 // Global variables for image processing
-let currentBgFile = null;
-let processedBgBlob = null;
+var currentBgFile = null;
+var processedBgBlob = null;
 
 /**
  * Initialize card designer with live preview bindings
