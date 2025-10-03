@@ -261,27 +261,49 @@ class SettingsBillingManager {
     }
 
     async openBillingPortal() {
-        try {
-            const response = await fetch('/api/create-billing-portal', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    customerId: this.restaurant.stripe_customer_id,
-                    returnUrl: window.location.href
-                })
-            });
-
-            if (response.ok) {
-                const { url } = await response.json();
-                window.location.href = url;
-            } else {
-                alert('Unable to open billing portal. Please try again.');
-            }
-        } catch (error) {
-            console.error('Error opening billing portal:', error);
-            alert('Error opening billing portal');
+    try {
+        if (!this.restaurant?.stripe_customer_id) {
+            alert('No payment method on file. Please contact support.');
+            return;
         }
+
+        console.log('Opening billing portal for customer:', this.restaurant.stripe_customer_id);
+
+        const response = await fetch('/api/create-billing-portal', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                customerId: this.restaurant.stripe_customer_id,
+                returnUrl: window.location.href
+            })
+        });
+
+        // Try to get the response text first
+        const text = await response.text();
+        console.log('Raw response:', text);
+        
+        let data;
+        try {
+            data = JSON.parse(text);
+        } catch (e) {
+            console.error('Response is not JSON:', text);
+            alert('Server error: ' + text);
+            return;
+        }
+
+        console.log('Billing portal response:', data);
+
+        if (response.ok && data.url) {
+            window.location.href = data.url;
+        } else {
+            console.error('Billing portal error:', data);
+            alert(`Unable to open billing portal: ${data.error || 'Unknown error'}`);
+        }
+    } catch (error) {
+        console.error('Error opening billing portal:', error);
+        alert('Error opening billing portal: ' + error.message);
     }
+}
 
     async loadAuthorizedEmails() {
         try {
