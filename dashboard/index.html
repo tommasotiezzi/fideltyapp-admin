@@ -447,10 +447,17 @@
                 <div id="notification-stats" class="stats-container"></div>
             </section>
             
-            <!-- ========== ANALYTICS SECTION ========== -->
             <section class="content-section" id="analytics-section">
                 <div class="section-header">
-                    <h1>Analytics</h1>
+                    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.5rem;">
+                        <h1 style="margin: 0;">Analytics</h1>
+                        <button class="btn-primary" id="btn-advanced-analytics" style="white-space: nowrap;">
+                            <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+                            </svg>
+                            Advanced Analytics
+                        </button>
+                    </div>
                     <p>Track your loyalty program performance</p>
                 </div>
                 
@@ -908,6 +915,8 @@
     <script src="./notifications.js"></script>
     <script src="./modals.js"></script>
     <script src="./analytics.js"></script>
+    <script src="./modal-advanced-analytics.js"></script>  <!-- DEVE essere dopo analytics.js -->
+
     <script src="./settings-billing.js"></script>
     <script src="./main.js"></script>
 </body>
