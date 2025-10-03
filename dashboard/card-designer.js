@@ -4,6 +4,10 @@
 let placesSearchTimeout = null;
 let placesAutocompleteSession = null;
 
+// Global variables for image processing
+let currentBgFile = null;
+let processedBgBlob = null;
+
 /**
  * Initialize card designer with live preview bindings
  */
@@ -112,8 +116,13 @@ function initializeCardDesigner() {
     const bgColorInput = document.getElementById('bg-color');
     if (bgColorInput && cardBg) {
         bgColorInput.addEventListener('input', (e) => {
+            // Only update gradient if no image is shown
             if (!bgImagePreview || bgImagePreview.style.display === 'none') {
                 cardBg.style.background = `linear-gradient(135deg, ${e.target.value} 0%, ${adjustColor(e.target.value, -20)} 100%)`;
+            } else if (currentBgFile) {
+                // Reprocess image with new color
+                const opacity = opacitySlider ? opacitySlider.value / 100 : 0.7;
+                processAndShowPreview(currentBgFile, opacity);
             }
         });
     }
@@ -162,7 +171,7 @@ function initializeCardDesigner() {
         });
     }
     
-    // Stamps Required Dropdown - FIXED to update preview
+    // Stamps Required Dropdown
     const stampsSelect = document.getElementById('stamps-required');
     if (stampsSelect) {
         // Set initial stamps grid
@@ -195,7 +204,7 @@ function initializeCardDesigner() {
 }
 
 /**
- * Setup form validation behavior - FIXED
+ * Setup form validation behavior
  */
 function setupFormValidation() {
     // Mark fields as touched on blur for validation styling
@@ -221,7 +230,7 @@ function setupFormValidation() {
 }
 
 /**
- * Process and show preview of background image with opacity
+ * Process and show preview of background image with opacity and color overlay
  */
 async function processAndShowPreview(file, opacity = 0.7) {
     const reader = new FileReader();
@@ -235,26 +244,27 @@ async function processAndShowPreview(file, opacity = 0.7) {
             canvas.width = img.width;
             canvas.height = img.height;
             
-            // Draw the image with opacity
+            // Fill with the selected background color first
+            const bgColor = document.getElementById('bg-color')?.value || '#7c5ce6';
+            ctx.fillStyle = bgColor;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // Draw the image with opacity on top
             ctx.globalAlpha = opacity;
             ctx.drawImage(img, 0, 0);
             
             // Get the processed image
             canvas.toBlob(function(blob) {
+                processedBgBlob = blob; // Store the processed blob
                 const processedUrl = URL.createObjectURL(blob);
                 
                 // Update the preview
                 const bgImagePreview = document.getElementById('bg-image-preview');
-                const cardBg = document.getElementById('card-bg');
                 
                 if (bgImagePreview) {
                     bgImagePreview.src = processedUrl;
                     bgImagePreview.style.display = 'block';
                     bgImagePreview.style.opacity = '1';
-                }
-                
-                if (cardBg) {
-                    cardBg.style.background = 'none';
                 }
             });
         };
@@ -269,10 +279,10 @@ async function processAndShowPreview(file, opacity = 0.7) {
  */
 async function uploadImage(file, bucket, restaurantId) {
     try {
-        console.log(`Uploading to ${bucket}:`, file.name, 'Size:', file.size);
+        console.log(`Uploading to ${bucket}:`, file.name || 'processed-image', 'Size:', file.size);
         
         const timestamp = Date.now();
-        const fileExt = file.name.split('.').pop();
+        const fileExt = file.name ? file.name.split('.').pop() : 'png';
         const fileName = `${restaurantId}_${timestamp}.${fileExt}`;
         const filePath = `${restaurantId}/${fileName}`;
         
@@ -306,7 +316,7 @@ async function uploadImage(file, bucket, restaurantId) {
 }
 
 /**
- * Initialize Google Places search for location input - EXACT COPY FROM WORKING VERSION
+ * Initialize Google Places search for location input
  */
 function initializePlacesSearch() {
     const locationInput = document.getElementById('location-name');
@@ -401,7 +411,7 @@ function initializePlacesSearch() {
 }
 
 /**
- * Search for places using Google Places API v2 - EXACT COPY FROM WORKING VERSION
+ * Search for places using Google Places API v2
  */
 async function searchPlaces(query) {
     try {
@@ -441,7 +451,7 @@ async function searchPlaces(query) {
 }
 
 /**
- * Display place suggestions - EXACT COPY FROM WORKING VERSION
+ * Display place suggestions
  */
 function displayPlacesSuggestions(places) {
     const container = document.getElementById('location-suggestions');
@@ -496,7 +506,7 @@ function displayPlacesSuggestions(places) {
 }
 
 /**
- * Select a place from suggestions - Enhanced to show address
+ * Select a place from suggestions
  */
 function selectPlace(place) {
     console.log('Selected place:', place);
@@ -638,7 +648,7 @@ function getSelectedSubtypes() {
 }
 
 /**
- * Create a new loyalty card with validation - FIXED
+ * Create a new loyalty card with validation
  */
 async function createNewCard() {
     const createBtn = document.getElementById('create-card-btn');
@@ -772,12 +782,12 @@ async function createNewCard() {
         
         console.log('Card data prepared:', cardData);
         
-        // Handle background image
+        // Handle background image - upload the processed blob with transparency
         const bgInput = document.getElementById('bg-input');
-        if (bgInput && bgInput.files && bgInput.files[0]) {
-            console.log('Background file found:', bgInput.files[0]);
+        if (bgInput && bgInput.files && bgInput.files[0] && processedBgBlob) {
+            console.log('Processed background blob found, uploading...');
             try {
-                const bgUrl = await uploadImage(bgInput.files[0], 'backgrounds', restaurantId);
+                const bgUrl = await uploadImage(processedBgBlob, 'card-backgrounds', restaurantId);
                 console.log('Background URL returned:', bgUrl);
                 cardData.background_image_url = bgUrl;
             } catch (uploadError) {
@@ -791,7 +801,7 @@ async function createNewCard() {
         if (logoInput && logoInput.files && logoInput.files[0]) {
             console.log('Logo file found:', logoInput.files[0]);
             try {
-                const logoUrl = await uploadImage(logoInput.files[0], 'logos', restaurantId);
+                const logoUrl = await uploadImage(logoInput.files[0], 'restaurant-logos', restaurantId);
                 console.log('Logo URL returned:', logoUrl);
                 cardData.logo_url = logoUrl;
             } catch (uploadError) {
@@ -834,7 +844,7 @@ async function createNewCard() {
 }
 
 /**
- * Update stamps grid based on count - FIXED IMPLEMENTATION
+ * Update stamps grid based on count
  */
 function updateStampsGrid(count) {
     const stampsGrid = document.getElementById('stamps-preview');
@@ -1075,18 +1085,17 @@ async function updateCardDesign(cardId) {
             updated_at: new Date().toISOString()
         };
         
-        // Handle background image if changed
+        // Handle background image if changed - upload processed blob
         const bgInput = document.getElementById('bg-input');
-        if (bgInput && bgInput.files && bgInput.files[0]) {
-            console.log('Uploading new background image...');
-            const bgFile = bgInput.files[0];
+        if (bgInput && bgInput.files && bgInput.files[0] && processedBgBlob) {
+            console.log('Uploading new processed background...');
             const restaurantId = (await supabase
                 .from('loyalty_cards')
                 .select('restaurant_id')
                 .eq('id', cardId)
                 .single()).data.restaurant_id;
                 
-            const bgUrl = await uploadImage(bgFile, 'backgrounds', restaurantId);
+            const bgUrl = await uploadImage(processedBgBlob, 'card-backgrounds', restaurantId);
             cardData.background_image_url = bgUrl;
         }
         
@@ -1094,14 +1103,13 @@ async function updateCardDesign(cardId) {
         const logoInput = document.getElementById('logo-input');
         if (logoInput && logoInput.files && logoInput.files[0]) {
             console.log('Uploading new logo...');
-            const logoFile = logoInput.files[0];
             const restaurantId = (await supabase
                 .from('loyalty_cards')
                 .select('restaurant_id')
                 .eq('id', cardId)
                 .single()).data.restaurant_id;
                 
-            const logoUrl = await uploadImage(logoFile, 'logos', restaurantId);
+            const logoUrl = await uploadImage(logoInput.files[0], 'restaurant-logos', restaurantId);
             cardData.logo_url = logoUrl;
         }
         
@@ -1177,6 +1185,10 @@ function resetCardForm() {
     document.getElementById('bg-input').value = '';
     document.getElementById('logo-input').value = '';
     
+    // Clear processed blobs
+    currentBgFile = null;
+    processedBgBlob = null;
+    
     // Reset previews
     document.getElementById('title-preview').textContent = 'Your Business';
     document.getElementById('location-subtitle').style.display = 'none';
@@ -1215,9 +1227,6 @@ function resetCardForm() {
     allInputs.forEach(input => {
         input.classList.remove('touched', 'valid', 'invalid');
     });
-    
-    // Clear current background file
-    currentBgFile = null;
 }
 
 // Export functions for use in main.js
