@@ -1,6 +1,7 @@
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 
 module.exports = async (req, res) => {
+  // Add CORS headers
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
@@ -13,6 +14,11 @@ module.exports = async (req, res) => {
 
     if (!subscriptionId) {
       return res.status(400).json({ error: 'Subscription ID required' });
+    }
+
+    // Add validation check
+    if (!subscriptionId.startsWith('sub_')) {
+      return res.status(400).json({ error: 'Invalid subscription ID format' });
     }
 
     const subscription = await stripe.subscriptions.retrieve(subscriptionId);
