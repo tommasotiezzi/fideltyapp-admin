@@ -335,66 +335,29 @@ async function handleLogin(e) {
  */
 async function createStripeCheckout(planId, restaurantId) {
     try {
-        // This would call your backend API to create Stripe checkout
-        // For now, we'll redirect to a placeholder
-        
-        const prices = {
-            basic: { 
-                priceId: 'price_basic', 
-                amount: 2990, 
-                name: 'Basic Plan' 
-            },
-            premium: { 
-                priceId: 'price_premium', 
-                amount: 4990, 
-                name: 'Premium Plan' 
-            }
-        };
-        
-        const plan = prices[planId];
-        
-        // TODO: Replace with actual API call
-        console.log('Creating Stripe checkout for:', {
-            planId,
-            restaurantId,
-            priceId: plan.priceId,
-            amount: plan.amount
-        });
-        
-        // For now, redirect to billing page in dashboard
-        showSuccess(`Redirecting to checkout for ${plan.name}...`);
-        
-        setTimeout(() => {
-            window.location.href = `/billing/index.html?plan=${planId}`;
-        }, 1500);
-        
-        /*
-        // Actual implementation would be:
         const response = await fetch('/api/create-checkout', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: {
+                'Content-Type': 'application/json',
+            },
             body: JSON.stringify({
-                priceId: plan.priceId,
-                restaurantId: restaurantId,
-                successUrl: window.location.origin + '/dashboard?payment=success',
-                cancelUrl: window.location.origin + '/dashboard?payment=cancelled'
+                planId,
+                restaurantId
             })
         });
-        
+
+        if (!response.ok) {
+            throw new Error('Failed to create checkout session');
+        }
+
         const { url } = await response.json();
         window.location.href = url;
-        */
         
     } catch (error) {
         console.error('Checkout error:', error);
-        showError('Failed to create checkout session. Redirecting to dashboard...');
-        
-        setTimeout(() => {
-            window.location.href = '/dashboard/index.html';
-        }, 2000);
+        showError('Failed to create checkout session. Please try again.');
     }
 }
-
 /**
  * Create URL-safe slug from text
  */
