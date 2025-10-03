@@ -333,31 +333,42 @@ async function handleLogin(e) {
 /**
  * Create Stripe checkout session
  */
+/**
+ * Create Stripe checkout session
+ */
 async function createStripeCheckout(planId, restaurantId) {
     try {
+        showSuccess(`Creating checkout for ${planId}...`);
+        
+        // Call your Vercel API
         const response = await fetch('/api/create-checkout', {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                planId,
-                restaurantId
+                planId: planId,
+                restaurantId: restaurantId
             })
         });
-
+        
         if (!response.ok) {
             throw new Error('Failed to create checkout session');
         }
-
+        
         const { url } = await response.json();
+        
+        // Redirect to Stripe Checkout
         window.location.href = url;
         
     } catch (error) {
         console.error('Checkout error:', error);
-        showError('Failed to create checkout session. Please try again.');
+        showError('Failed to create checkout. Redirecting to dashboard...');
+        
+        setTimeout(() => {
+            window.location.href = '/dashboard/index.html';
+        }, 2000);
     }
 }
+
 /**
  * Create URL-safe slug from text
  */
