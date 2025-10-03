@@ -1,25 +1,18 @@
-// settings-billing.js - Simplified for owner-only dashboard access
+// settings-billing.js - Fetch subscription data from Stripe API
 
 class SettingsBillingManager {
     constructor() {
         this.restaurant = null;
+        this.stripeSubscription = null;
         this.init();
     }
 
     async init() {
         try {
-            // Load restaurant data
             await this.loadRestaurantData();
-            
-            // Display billing overview with usage at top
             await this.displayBillingOverview();
-            
-            // Load authorized emails (for stamp validation)
             await this.loadAuthorizedEmails();
-            
-            // Setup event listeners
             this.setupEventListeners();
-            
         } catch (error) {
             console.error('Error initializing settings:', error);
             this.showErrorState();
@@ -31,7 +24,6 @@ class SettingsBillingManager {
             const { data: { user } } = await supabase.auth.getUser();
             if (!user) return;
             
-            // Owner-only dashboard, so we know this is the owner
             const { data: restaurant } = await supabase
                 .from('restaurants')
                 .select('*')
@@ -41,11 +33,35 @@ class SettingsBillingManager {
             this.restaurant = restaurant;
             sessionStorage.setItem('restaurant', JSON.stringify(restaurant));
             
-            // Update form fields
+            // Fetch subscription data from Stripe if subscription exists
+            if (restaurant.stripe_subscription_id) {
+                await this.fetchStripeSubscription();
+            }
+            
             this.updateRestaurantForm(restaurant);
             
         } catch (error) {
             console.error('Error loading restaurant data:', error);
+        }
+    }
+
+    async fetchStripeSubscription() {
+        try {
+            // Call your backend API to get subscription from Stripe
+            const response = await fetch('/api/get-subscription', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    subscriptionId: this.restaurant.stripe_subscription_id
+                })
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                this.stripeSubscription = data.subscription;
+            }
+        } catch (error) {
+            console.error('Error fetching Stripe subscription:', error);
         }
     }
 
@@ -66,19 +82,14 @@ class SettingsBillingManager {
         const tier = window.subscriptionManager?.getCurrentTier() || 'free';
         const tierConfig = window.subscriptionManager?.getTierConfig() || {};
         
-        // First, display usage overview at the top
         const featureUsageHtml = await this.generateFeatureUsageHtml();
-        
-        // Then, display billing information
         const billingInfoHtml = this.generateBillingInfoHtml(tier, tierConfig);
         
-        // Combine both sections
         billingOverview.innerHTML = `
             ${featureUsageHtml}
             ${billingInfoHtml}
         `;
         
-        // Load actual usage data
         await this.loadUsageData();
     }
 
@@ -139,11 +150,6 @@ class SettingsBillingManager {
     }
 
     generateBillingInfoHtml(tier, tierConfig) {
-        const nextBillingDate = this.calculateNextBillingDate();
-        const daysRemaining = this.calculateDaysRemaining(nextBillingDate);
-        const isInTrialPeriod = this.isInTrialPeriod();
-        
-        // Get tier display configuration
         const tierColors = {
             free: { bg: '#e5e7eb', text: '#4b5563' },
             basic: { bg: '#3b82f6', text: '#ffffff' },
@@ -152,6 +158,20 @@ class SettingsBillingManager {
         };
         
         const colors = tierColors[tier] || tierColors.free;
+        
+        // Get data from Stripe subscription
+        let nextBillingDate = 'N/A';
+        let daysRemaining = 0;
+        let isInTrial = false;
+        let subscriptionStatus = 'active';
+
+        if (this.stripeSubscription) {
+            const currentPeriodEnd = new Date(this.stripeSubscription.current_period_end * 1000);
+            nextBillingDate = currentPeriodEnd.toLocaleDateString();
+            daysRemaining = Math.ceil((currentPeriodEnd - new Date()) / (1000 * 60 * 60 * 24));
+            isInTrial = this.stripeSubscription.status === 'trialing';
+            subscriptionStatus = this.stripeSubscription.status;
+        }
         
         return `
             <div class="billing-info-section" style="background: linear-gradient(135deg, ${colors.bg}, ${this.adjustColor(colors.bg, -20)}); color: ${colors.text}; padding: 2rem; border-radius: 12px; margin-top: 2rem;">
@@ -175,40 +195,55 @@ class SettingsBillingManager {
                         <div class="billing-detail-card">
                             <span class="billing-label">Monthly Fee</span>
                             <span class="billing-value">€${tierConfig.monthlyFee || 0}</span>
-                            <span class="billing-detail">${isInTrialPeriod ? 'In trial period' : 'Per month'}</span>
+                            <span class="billing-detail">${isInTrial ? 'Currently in included period' : 'Per month'}</span>
                         </div>
                         
                         <div class="billing-detail-card">
                             <span class="billing-label">Next Payment</span>
-                            <span class="billing-value">${nextBillingDate.toLocaleDateString()}</span>
+                            <span class="billing-value">${nextBillingDate}</span>
                             <span class="billing-detail">${daysRemaining} days remaining</span>
                         </div>
                         
                         <div class="billing-detail-card">
-                            <span class="billing-label">Activation Fee</span>
-                            <span class="billing-value">${this.restaurant?.activation_fee_paid ? 'Paid' : `€${tierConfig.activationFee || 0}`}</span>
-                            <span class="billing-detail">${this.restaurant?.activation_fee_paid ? 'One-time fee paid' : 'One-time setup'}</span>
+                            <span class="billing-label">Status</span>
+                            <span class="billing-value" style="font-size: 1.25rem; text-transform: capitalize;">
+                                ${subscriptionStatus === 'trialing' ? '60 Days Included' : subscriptionStatus}
+                            </span>
+                            <span class="billing-detail">${isInTrial ? 'Activation fee paid' : 'Active subscription'}</span>
                         </div>
                     </div>
                     
-                    ${isInTrialPeriod ? `
+                    ${isInTrial ? `
                         <div class="trial-notice" style="background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.3); padding: 1rem; border-radius: 8px; margin-top: 1.5rem;">
                             <svg width="20" height="20" fill="currentColor" viewBox="0 0 24 24" style="display: inline-block; vertical-align: middle; margin-right: 0.5rem;">
                                 <path d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
                             </svg>
-                            <span>Trial period active - Add payment method before ${nextBillingDate.toLocaleDateString()}</span>
+                            <span>Your 60-day included period is active. First billing on ${nextBillingDate}</span>
                         </div>
                     ` : ''}
                     
                     <div class="payment-method-section">
                         <h3 style="color: ${colors.text}; margin-top: 2rem;">Payment Method</h3>
-                        <div class="stripe-placeholder" style="background: rgba(255,255,255,0.1); border: 2px dashed rgba(255,255,255,0.3); padding: 2rem; border-radius: 8px; text-align: center;">
-                            <svg width="48" height="48" fill="currentColor" viewBox="0 0 24 24" style="opacity: 0.5; margin-bottom: 1rem;">
-                                <path d="M3 10h11v2H3v-2zm0 4h7v2H3v-2zm0-8h18v2H3V6zm14 12.59L14.41 16 19 11.41 21.59 14 19 16.59 16.41 14 14 16.59z"/>
-                            </svg>
-                            <p style="opacity: 0.8;">Stripe payment integration coming soon</p>
-                            <p style="font-size: 0.875rem; opacity: 0.6;">Secure payment processing by Stripe</p>
-                        </div>
+                        ${this.stripeSubscription ? `
+                            <div class="payment-method-card" style="background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); padding: 1.5rem; border-radius: 8px;">
+                                <div style="display: flex; justify-content: space-between; align-items: center;">
+                                    <div>
+                                        <p style="margin: 0 0 0.5rem 0; opacity: 0.9;">Card on file</p>
+                                        <p style="margin: 0; font-size: 0.875rem; opacity: 0.7;">Managed securely by Stripe</p>
+                                    </div>
+                                    <button class="btn-manage-billing" onclick="settingsBilling.openBillingPortal()" style="background: rgba(255,255,255,0.95); color: ${colors.bg}; padding: 0.625rem 1.25rem; border: none; border-radius: 6px; font-weight: 600; cursor: pointer; transition: all 0.2s;">
+                                        Manage Payment
+                                    </button>
+                                </div>
+                            </div>
+                        ` : `
+                            <div class="stripe-placeholder" style="background: rgba(255,255,255,0.1); border: 2px dashed rgba(255,255,255,0.3); padding: 2rem; border-radius: 8px; text-align: center;">
+                                <svg width="48" height="48" fill="currentColor" viewBox="0 0 24 24" style="opacity: 0.5; margin-bottom: 1rem;">
+                                    <path d="M3 10h11v2H3v-2zm0 4h7v2H3v-2zm0-8h18v2H3V6zm14 12.59L14.41 16 19 11.41 21.59 14 19 16.59 16.41 14 14 16.59z"/>
+                                </svg>
+                                <p style="opacity: 0.8;">No payment method on file</p>
+                            </div>
+                        `}
                     </div>
                 ` : ''}
                 
@@ -223,6 +258,29 @@ class SettingsBillingManager {
                 ` : ''}
             </div>
         `;
+    }
+
+    async openBillingPortal() {
+        try {
+            const response = await fetch('/api/create-billing-portal', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    customerId: this.restaurant.stripe_customer_id,
+                    returnUrl: window.location.href
+                })
+            });
+
+            if (response.ok) {
+                const { url } = await response.json();
+                window.location.href = url;
+            } else {
+                alert('Unable to open billing portal. Please try again.');
+            }
+        } catch (error) {
+            console.error('Error opening billing portal:', error);
+            alert('Error opening billing portal');
+        }
     }
 
     async loadAuthorizedEmails() {
@@ -306,7 +364,7 @@ class SettingsBillingManager {
             this.addEmailToUI(email);
             emailInput.value = '';
             
-            alert(`${email} is now authorized to validate stamps. They can sign up using the mobile app with this email.`);
+            alert(`${email} is now authorized to validate stamps.`);
             
         } catch (error) {
             console.error('Error adding authorized email:', error);
@@ -333,7 +391,6 @@ class SettingsBillingManager {
             
             if (error) throw error;
             
-            // Reload the list
             await this.loadAuthorizedEmails();
             
         } catch (error) {
@@ -346,7 +403,6 @@ class SettingsBillingManager {
         try {
             const tierConfig = window.subscriptionManager?.getTierConfig() || {};
             
-            // Get live cards count
             const { data: cards } = await supabase
                 .from('loyalty_cards')
                 .select('id')
@@ -354,14 +410,12 @@ class SettingsBillingManager {
                 .eq('campaign_status', 'live')
                 .is('deleted_at', null);
             
-            // Get active promotions
             const { data: promotions } = await supabase
                 .from('promotions')
                 .select('id')
                 .eq('restaurant_id', this.restaurant.id)
                 .eq('status', 'active');
             
-            // Get active events
             const today = new Date().toISOString().split('T')[0];
             const { data: events } = await supabase
                 .from('events')
@@ -370,7 +424,6 @@ class SettingsBillingManager {
                 .eq('status', 'active')
                 .gte('event_date', today);
             
-            // Update UI
             this.updateUsageDisplay('cards', cards?.length || 0, tierConfig.maxLiveCards);
             this.updateUsageDisplay('promotions', promotions?.length || 0, tierConfig.maxLivePromotions);
             this.updateUsageDisplay('events', events?.length || 0, tierConfig.maxLiveEvents);
@@ -406,39 +459,6 @@ class SettingsBillingManager {
                 usageEl.style.color = '#10b981';
             }
         }
-    }
-
-    calculateNextBillingDate() {
-        if (!this.restaurant?.subscription_started_at) {
-            const date = new Date();
-            date.setMonth(date.getMonth() + 1);
-            return date;
-        }
-        
-        const startDate = new Date(this.restaurant.subscription_started_at);
-        const now = new Date();
-        const monthsSinceStart = Math.floor((now - startDate) / (30 * 24 * 60 * 60 * 1000));
-        
-        const nextBilling = new Date(startDate);
-        nextBilling.setMonth(startDate.getMonth() + monthsSinceStart + 1);
-        
-        return nextBilling;
-    }
-
-    calculateDaysRemaining(nextBillingDate) {
-        const now = new Date();
-        return Math.ceil((nextBillingDate - now) / (1000 * 60 * 60 * 24));
-    }
-
-    isInTrialPeriod() {
-        if (!this.restaurant?.subscription_started_at) return false;
-        
-        const startDate = new Date(this.restaurant.subscription_started_at);
-        const now = new Date();
-        const monthsSinceStart = (now - startDate) / (30 * 24 * 60 * 60 * 1000);
-        
-        const tierConfig = window.subscriptionManager?.getTierConfig() || {};
-        return monthsSinceStart < (tierConfig.includedMonths || 0);
     }
 
     adjustColor(color, amount) {
@@ -667,18 +687,9 @@ if (!document.getElementById('billing-styles')) {
             color: white;
         }
         
-        .staff-add {
-            display: flex;
-            gap: 0.5rem;
-            margin-bottom: 1rem;
-        }
-        
-        .staff-add input {
-            flex: 1;
-            padding: 0.5rem 0.75rem;
-            border: 1px solid #e5e5e7;
-            border-radius: 6px;
-            font-size: 0.875rem;
+        .btn-manage-billing:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.15);
         }
         
         @media (max-width: 768px) {
