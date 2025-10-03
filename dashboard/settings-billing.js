@@ -150,115 +150,127 @@ class SettingsBillingManager {
     }
 
     generateBillingInfoHtml(tier, tierConfig) {
-        const tierColors = {
-            free: { bg: '#e5e7eb', text: '#4b5563' },
-            basic: { bg: '#3b82f6', text: '#ffffff' },
-            premium: { bg: '#8b5cf6', text: '#ffffff' },
-            enterprise: { bg: '#f59e0b', text: '#ffffff' }
-        };
-        
-        const colors = tierColors[tier] || tierColors.free;
-        
-        // Get data from Stripe subscription
-        let nextBillingDate = 'N/A';
-        let daysRemaining = 0;
-        let isInTrial = false;
-        let subscriptionStatus = 'active';
+    const tierColors = {
+        free: { bg: '#e5e7eb', text: '#4b5563' },
+        basic: { bg: '#3b82f6', text: '#ffffff' },
+        premium: { bg: '#8b5cf6', text: '#ffffff' },
+        enterprise: { bg: '#f59e0b', text: '#ffffff' }
+    };
+    
+    const colors = tierColors[tier] || tierColors.free;
+    
+    // Get data from Stripe subscription
+    let nextBillingDate = 'N/A';
+    let daysRemaining = 0;
+    let isInTrial = false;
+    let subscriptionStatus = 'active';
 
-        if (this.stripeSubscription) {
-            const currentPeriodEnd = new Date(this.stripeSubscription.current_period_end * 1000);
-            nextBillingDate = currentPeriodEnd.toLocaleDateString();
-            daysRemaining = Math.ceil((currentPeriodEnd - new Date()) / (1000 * 60 * 60 * 24));
-            isInTrial = this.stripeSubscription.status === 'trialing';
-            subscriptionStatus = this.stripeSubscription.status;
-        }
+    if (this.stripeSubscription) {
+        isInTrial = this.stripeSubscription.status === 'trialing';
+        subscriptionStatus = this.stripeSubscription.status;
         
-        return `
-            <div class="billing-info-section" style="background: linear-gradient(135deg, ${colors.bg}, ${this.adjustColor(colors.bg, -20)}); color: ${colors.text}; padding: 2rem; border-radius: 12px; margin-top: 2rem;">
-                <div class="billing-header">
-                    <div>
-                        <h2 style="color: ${colors.text}; margin: 0;">${tierConfig.displayName || 'Free'} Plan</h2>
-                        <p style="opacity: 0.9; margin: 0.5rem 0;">
-                            ${tier === 'free' ? 'Explore Tessere with limited features' :
-                              tier === 'basic' ? 'Perfect for small restaurants' :
-                              tier === 'premium' ? 'Full-featured for growing businesses' :
-                              'Unlimited everything with dedicated support'}
-                        </p>
+        // Use trial_end if in trial, otherwise use current_period_end
+        const endTimestamp = isInTrial 
+            ? this.stripeSubscription.trial_end 
+            : this.stripeSubscription.current_period_end;
+        
+        if (endTimestamp) {
+            const endDate = new Date(endTimestamp * 1000);
+            nextBillingDate = endDate.toLocaleDateString('en-GB', { 
+                year: 'numeric', 
+                month: 'long', 
+                day: 'numeric' 
+            });
+            daysRemaining = Math.ceil((endDate - new Date()) / (1000 * 60 * 60 * 24));
+        }
+    }
+    
+    return `
+        <div class="billing-info-section" style="background: linear-gradient(135deg, ${colors.bg}, ${this.adjustColor(colors.bg, -20)}); color: ${colors.text}; padding: 2rem; border-radius: 12px; margin-top: 2rem;">
+            <div class="billing-header">
+                <div>
+                    <h2 style="color: ${colors.text}; margin: 0;">${tierConfig.displayName || 'Free'} Plan</h2>
+                    <p style="opacity: 0.9; margin: 0.5rem 0;">
+                        ${tier === 'free' ? 'Explore Tessere with limited features' :
+                          tier === 'basic' ? 'Perfect for small restaurants' :
+                          tier === 'premium' ? 'Full-featured for growing businesses' :
+                          'Unlimited everything with dedicated support'}
+                    </p>
+                </div>
+                <div class="plan-badge" style="background: rgba(255,255,255,0.2); padding: 0.5rem 1rem; border-radius: 20px; font-weight: 600;">
+                    ${tier.toUpperCase()}
+                </div>
+            </div>
+            
+            ${tier !== 'free' ? `
+                <div class="billing-details-grid">
+                    <div class="billing-detail-card">
+                        <span class="billing-label">Monthly Fee</span>
+                        <span class="billing-value">€${tierConfig.monthlyFee || 0}</span>
+                        <span class="billing-detail">${isInTrial ? 'Currently in included period' : 'Per month'}</span>
                     </div>
-                    <div class="plan-badge" style="background: rgba(255,255,255,0.2); padding: 0.5rem 1rem; border-radius: 20px; font-weight: 600;">
-                        ${tier.toUpperCase()}
+                    
+                    <div class="billing-detail-card">
+                        <span class="billing-label">Next Payment</span>
+                        <span class="billing-value">${nextBillingDate}</span>
+                        <span class="billing-detail">${daysRemaining} days remaining</span>
+                    </div>
+                    
+                    <div class="billing-detail-card">
+                        <span class="billing-label">Status</span>
+                        <span class="billing-value" style="font-size: 1.25rem; text-transform: capitalize;">
+                            ${subscriptionStatus === 'trialing' ? '60 Days Included' : subscriptionStatus}
+                        </span>
+                        <span class="billing-detail">${isInTrial ? 'Activation fee paid' : 'Active subscription'}</span>
                     </div>
                 </div>
                 
-                ${tier !== 'free' ? `
-                    <div class="billing-details-grid">
-                        <div class="billing-detail-card">
-                            <span class="billing-label">Monthly Fee</span>
-                            <span class="billing-value">€${tierConfig.monthlyFee || 0}</span>
-                            <span class="billing-detail">${isInTrial ? 'Currently in included period' : 'Per month'}</span>
-                        </div>
-                        
-                        <div class="billing-detail-card">
-                            <span class="billing-label">Next Payment</span>
-                            <span class="billing-value">${nextBillingDate}</span>
-                            <span class="billing-detail">${daysRemaining} days remaining</span>
-                        </div>
-                        
-                        <div class="billing-detail-card">
-                            <span class="billing-label">Status</span>
-                            <span class="billing-value" style="font-size: 1.25rem; text-transform: capitalize;">
-                                ${subscriptionStatus === 'trialing' ? '60 Days Included' : subscriptionStatus}
-                            </span>
-                            <span class="billing-detail">${isInTrial ? 'Activation fee paid' : 'Active subscription'}</span>
-                        </div>
-                    </div>
-                    
-                    ${isInTrial ? `
-                        <div class="trial-notice" style="background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.3); padding: 1rem; border-radius: 8px; margin-top: 1.5rem;">
-                            <svg width="20" height="20" fill="currentColor" viewBox="0 0 24 24" style="display: inline-block; vertical-align: middle; margin-right: 0.5rem;">
-                                <path d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                            </svg>
-                            <span>Your 60-day included period is active. First billing on ${nextBillingDate}</span>
-                        </div>
-                    ` : ''}
-                    
-                    <div class="payment-method-section">
-                        <h3 style="color: ${colors.text}; margin-top: 2rem;">Payment Method</h3>
-                        ${this.stripeSubscription ? `
-                            <div class="payment-method-card" style="background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); padding: 1.5rem; border-radius: 8px;">
-                                <div style="display: flex; justify-content: space-between; align-items: center;">
-                                    <div>
-                                        <p style="margin: 0 0 0.5rem 0; opacity: 0.9;">Card on file</p>
-                                        <p style="margin: 0; font-size: 0.875rem; opacity: 0.7;">Managed securely by Stripe</p>
-                                    </div>
-                                    <button class="btn-manage-billing" onclick="settingsBilling.openBillingPortal()" style="background: rgba(255,255,255,0.95); color: ${colors.bg}; padding: 0.625rem 1.25rem; border: none; border-radius: 6px; font-weight: 600; cursor: pointer; transition: all 0.2s;">
-                                        Manage Payment
-                                    </button>
-                                </div>
-                            </div>
-                        ` : `
-                            <div class="stripe-placeholder" style="background: rgba(255,255,255,0.1); border: 2px dashed rgba(255,255,255,0.3); padding: 2rem; border-radius: 8px; text-align: center;">
-                                <svg width="48" height="48" fill="currentColor" viewBox="0 0 24 24" style="opacity: 0.5; margin-bottom: 1rem;">
-                                    <path d="M3 10h11v2H3v-2zm0 4h7v2H3v-2zm0-8h18v2H3V6zm14 12.59L14.41 16 19 11.41 21.59 14 19 16.59 16.41 14 14 16.59z"/>
-                                </svg>
-                                <p style="opacity: 0.8;">No payment method on file</p>
-                            </div>
-                        `}
+                ${isInTrial ? `
+                    <div class="trial-notice" style="background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.3); padding: 1rem; border-radius: 8px; margin-top: 1.5rem;">
+                        <svg width="20" height="20" fill="currentColor" viewBox="0 0 24 24" style="display: inline-block; vertical-align: middle; margin-right: 0.5rem;">
+                            <path d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                        </svg>
+                        <span>Your 60-day included period is active. First billing on ${nextBillingDate}</span>
                     </div>
                 ` : ''}
                 
-                ${tier !== 'enterprise' ? `
-                    <div class="upgrade-section" style="margin-top: 2rem; padding-top: 2rem; border-top: 1px solid rgba(255,255,255,0.2);">
-                        <h3 style="color: ${colors.text};">${tier === 'free' ? 'Upgrade Your Business' : 'Need More Features?'}</h3>
-                        <button class="btn-upgrade" style="background: rgba(255,255,255,0.95); color: ${colors.bg}; padding: 0.75rem 1.5rem; border: none; border-radius: 8px; font-weight: 600; cursor: pointer;" 
-                                onclick="window.subscriptionManager.showUpgradeModal('settings', '${tier === 'free' ? 'basic' : tier === 'basic' ? 'premium' : 'enterprise'}')">
-                            ${tier === 'free' ? 'View Plans' : 'Upgrade Plan'}
-                        </button>
-                    </div>
-                ` : ''}
-            </div>
-        `;
-    }
+                <div class="payment-method-section">
+                    <h3 style="color: ${colors.text}; margin-top: 2rem;">Payment Method</h3>
+                    ${this.stripeSubscription ? `
+                        <div class="payment-method-card" style="background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); padding: 1.5rem; border-radius: 8px;">
+                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                                <div>
+                                    <p style="margin: 0 0 0.5rem 0; opacity: 0.9;">Card on file</p>
+                                    <p style="margin: 0; font-size: 0.875rem; opacity: 0.7;">Managed securely by Stripe</p>
+                                </div>
+                                <button class="btn-manage-billing" onclick="settingsBilling.openBillingPortal()" style="background: rgba(255,255,255,0.95); color: ${colors.bg}; padding: 0.625rem 1.25rem; border: none; border-radius: 6px; font-weight: 600; cursor: pointer; transition: all 0.2s;">
+                                    Manage Payment
+                                </button>
+                            </div>
+                        </div>
+                    ` : `
+                        <div class="stripe-placeholder" style="background: rgba(255,255,255,0.1); border: 2px dashed rgba(255,255,255,0.3); padding: 2rem; border-radius: 8px; text-align: center;">
+                            <svg width="48" height="48" fill="currentColor" viewBox="0 0 24 24" style="opacity: 0.5; margin-bottom: 1rem;">
+                                <path d="M3 10h11v2H3v-2zm0 4h7v2H3v-2zm0-8h18v2H3V6zm14 12.59L14.41 16 19 11.41 21.59 14 19 16.59 16.41 14 14 16.59z"/>
+                            </svg>
+                            <p style="opacity: 0.8;">No payment method on file</p>
+                        </div>
+                    `}
+                </div>
+            ` : ''}
+            
+            ${tier !== 'enterprise' ? `
+                <div class="upgrade-section" style="margin-top: 2rem; padding-top: 2rem; border-top: 1px solid rgba(255,255,255,0.2);">
+                    <h3 style="color: ${colors.text};">${tier === 'free' ? 'Upgrade Your Business' : 'Need More Features?'}</h3>
+                    <button class="btn-upgrade" style="background: rgba(255,255,255,0.95); color: ${colors.bg}; padding: 0.75rem 1.5rem; border: none; border-radius: 8px; font-weight: 600; cursor: pointer;" 
+                            onclick="window.subscriptionManager.showUpgradeModal('settings', '${tier === 'free' ? 'basic' : tier === 'basic' ? 'premium' : 'enterprise'}')">
+                        ${tier === 'free' ? 'View Plans' : 'Upgrade Plan'}
+                    </button>
+                </div>
+            ` : ''}
+        </div>
+    `;
+}
 
     async openBillingPortal() {
     try {
