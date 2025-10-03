@@ -28,24 +28,86 @@ module.exports = async (req, res) => {
     return res.status(400).send(`Webhook Error: ${err.message}`);
   }
 
-  if (event.type === 'checkout.session.completed') {
+  // Activation fee paid successfully
+  if (event.type === 'checkout.session.completed' && event.data.object.mode === 'payment') {
     const session = event.data.object;
-    const { restaurantId, planId } = session.metadata;
+    const { restaurantId, planId, recurringPrice } = session.metadata;
 
-    if (restaurantId && planId) {
-      const subscriptionEndsAt = new Date();
-      subscriptionEndsAt.setMonth(subscriptionEndsAt.getMonth() + 2);
+    console.log('Activation fee paid:', { restaurantId, planId });
 
-      await supabase
-        .from('restaurants')
-        .update({
-          subscription_status: 'active',
-          subscription_tier: planId,
-          subscription_ends_at: subscriptionEndsAt.toISOString(),
-          stripe_session_id: session.id,
-        })
-        .eq('id', restaurantId);
+    if (restaurantId && recurringPrice) {
+      try {
+        // Get or create customer
+        let customerId = session.customer;
+        if (!customerId) {
+          const customer = await stripe.customers.create({
+            email: session.customer_details?.email,
+            metadata: { restaurantId }
+          });
+          customerId = customer.id;
+        }
+
+        // Create subscription that starts in 60 days
+        const trialEnd = Math.floor(Date.now() / 1000) + (60 * 24 * 60 * 60);
+        
+        const subscription = await stripe.subscriptions.create({
+          customer: customerId,
+          items: [{ price: recurringPrice }],
+          trial_end: trialEnd,
+          metadata: { restaurantId, planId }
+        });
+
+        console.log('Subscription created:', subscription.id);
+
+        // Update database
+        await supabase
+          .from('restaurants')
+          .update({
+            subscription_status: 'active',
+            subscription_tier: planId,
+            stripe_customer_id: customerId,
+            stripe_subscription_id: subscription.id,
+            activation_fee_paid: true
+          })
+          .eq('id', restaurantId);
+
+      } catch (error) {
+        console.error('Error creating subscription:', error);
+      }
     }
+  }
+
+  // Subscription status changes
+  if (event.type === 'customer.subscription.updated') {
+    const subscription = event.data.object;
+    
+    await supabase
+      .from('restaurants')
+      .update({ subscription_status: subscription.status })
+      .eq('stripe_subscription_id', subscription.id);
+  }
+
+  // Payment failed
+  if (event.type === 'invoice.payment_failed') {
+    const invoice = event.data.object;
+    
+    await supabase
+      .from('restaurants')
+      .update({ subscription_status: 'past_due' })
+      .eq('stripe_customer_id', invoice.customer);
+  }
+
+  // Subscription deleted/cancelled
+  if (event.type === 'customer.subscription.deleted') {
+    const subscription = event.data.object;
+    
+    await supabase
+      .from('restaurants')
+      .update({ 
+        subscription_status: 'cancelled',
+        subscription_tier: 'free'
+      })
+      .eq('stripe_subscription_id', subscription.id);
   }
 
   res.json({ received: true });
