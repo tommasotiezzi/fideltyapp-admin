@@ -1,0 +1,914 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Panel — Tessere</title>
+    
+    <!-- Inter Font -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Styles -->
+    <link rel="stylesheet" href="styles/base.css">
+    <link rel="stylesheet" href="styles/sidebar.css">
+    <link rel="stylesheet" href="styles/card-designer.css">
+    <link rel="stylesheet" href="styles/cards-manager.css">
+    <link rel="stylesheet" href="styles/analytics-settings.css">
+    <link rel="stylesheet" href="styles/billing.css">
+    <link rel="stylesheet" href="styles/promotions.css">
+    <link rel="stylesheet" href="styles/events.css">
+    <link rel="stylesheet" href="styles/notifications.css">
+    <link rel="stylesheet" href="styles/modals.css">
+    
+    <!-- Supabase -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    
+    <!-- QR Code Generator Library -->
+    <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.1/build/qrcode.min.js"></script>
+</head>
+<body>
+    <div class="admin-container">
+        <!-- ==================== SIDEBAR ==================== -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <div class="logo">
+                    <div class="logo-icon">
+                        <span></span>
+                        <span></span>
+                        <span></span>
+                        <span></span>
+                    </div>
+                    <span>Tessere Admin</span>
+                </div>
+            </div>
+            
+            <nav class="sidebar-nav">
+                <button class="nav-item active" data-section="my-cards">
+                    <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <rect x="3" y="6" width="18" height="12" rx="2"/>
+                        <path d="M3 10h18M7 15h2"/>
+                    </svg>
+                    <span>My Cards</span>
+                </button>
+                
+                <button class="nav-item" data-section="create-card">
+                    <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                    </svg>
+                    <span>Create Loyalty Card</span>
+                </button>
+                
+                <button class="nav-item" data-section="promotions">
+                    <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A2 2 0 013 12V7a4 4 0 014-4z"/>
+                    </svg>
+                    <span>Promotions</span>
+                </button>
+                
+                <button class="nav-item" data-section="events">
+                    <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                    </svg>
+                    <span>Events</span>
+                </button>
+                <!-- TEMPORARILY DISABLED - Under Development
+                <button class="nav-item" data-section="notifications">
+                    <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
+                    </svg>
+                    <span>Push Notifications</span>
+                </button>
+            -->
+                
+                <button class="nav-item" data-section="analytics">
+                    <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+                    </svg>
+                    <span>Analytics</span>
+                </button>
+                
+                <button class="nav-item" data-section="settings">
+                    <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
+                        <circle cx="12" cy="12" r="3"/>
+                    </svg>
+                    <span>Settings & Billing</span>
+                </button>
+            </nav>
+            
+            <div class="sidebar-footer">
+                <div class="restaurant-info">
+                    <div class="restaurant-name" id="restaurant-name">Loading...</div>
+                    <div class="subscription-badge">
+                        <span class="badge-dot"></span>
+                        <span class="badge-text">Loading...</span>
+                    </div>
+                </div>
+                
+                <button class="logout-btn" id="logout-btn">
+                    <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
+                    </svg>
+                    <span>Logout</span>
+                </button>
+            </div>
+        </aside>
+        
+        <!-- ==================== MAIN CONTENT ==================== -->
+        <main class="main-content">
+            
+            <!-- ========== MY CARDS SECTION ========== -->
+            <section class="content-section active" id="my-cards-section">
+                <div class="section-header">
+                    <h1>My Cards</h1>
+                    <p>Manage all your loyalty cards and campaigns</p>
+                </div>
+                
+                <div class="cards-usage-indicator"></div>
+                
+                <div class="cards-controls">
+                    <div class="search-bar">
+                        <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                        </svg>
+                        <input type="text" id="search-cards" placeholder="Search cards...">
+                    </div>
+                    <div class="filter-buttons">
+                        <button class="filter-btn active" data-filter="all">All</button>
+                        <button class="filter-btn" data-filter="draft">Draft</button>
+                        <button class="filter-btn" data-filter="live">Live</button>
+                    </div>
+                </div>
+                
+                <div class="cards-grid" id="cards-grid">
+                    <div class="loading-state">
+                        <svg class="animate-spin" width="40" height="40" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" opacity="0.25"></circle>
+                            <path d="M4 12a8 8 0 018-8v8z" fill="currentColor"></path>
+                        </svg>
+                        <p>Loading cards...</p>
+                    </div>
+                </div>
+                
+                <div class="no-cards-state" id="no-cards" style="display: none;">
+                    <svg width="64" height="64" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <rect x="3" y="6" width="18" height="12" rx="2"/>
+                        <path d="M3 10h18M7 15h2"/>
+                    </svg>
+                    <h3>No cards found</h3>
+                    <p>Create your first loyalty card to get started</p>
+                    <button class="btn-primary" id="create-card-cta">Create Card</button>
+                </div>
+            </section>
+            
+            <!-- ========== CREATE CARD SECTION ========== -->
+            <section class="content-section" id="create-card-section">
+                <div class="section-header">
+                    <h1>Create Loyalty Card</h1>
+                    <p>Design a loyalty card for your business</p>
+                </div>
+                
+                <div class="card-designer">
+                    <div class="card-preview-container">
+                        <h3>Live Preview</h3>
+                        <div class="phone-mockup">
+                            <div class="loyalty-card">
+                                <div class="card-background" id="card-bg">
+                                    <img class="card-bg-image" id="bg-image-preview" style="display: none;">
+                                </div>
+                                <div class="card-content">
+                                    <div class="card-header">
+                                        <img class="card-logo" id="logo-preview" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='50' height='50' fill='white' viewBox='0 0 24 24'%3E%3Cpath d='M12 2L2 7v10c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V7l-10-5z'/%3E%3C/svg%3E">
+                                        <div>
+                                            <div class="card-title" id="title-preview">Your Business</div>
+                                            <div class="card-location" id="location-subtitle" style="display: none;"></div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="stamps-container">
+                                        <div class="stamps-grid" id="stamps-preview" data-count="10"></div>
+                                    </div>
+                                    
+                                    <div class="card-reward">
+                                        <span class="reward-label">Reward:</span>
+                                        <span class="reward-text" id="reward-text-preview">Free Item</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="card-controls">
+                        <h3>Card Details</h3>
+                        
+<div class="control-group">
+    <label for="display-name">Business Display Name <span class="required-asterisk">*</span></label>
+    <input type="text" id="display-name" placeholder="e.g., Bella Vista Restaurant" value="" required>
+</div>
+
+<div class="control-group">
+    <label for="business-type">Business Type <span class="required-asterisk">*</span></label>
+    <select id="business-type" required>
+        <option value="">Select a category...</option>
+        <option value="food_beverage">Food & Beverage</option>
+        <option value="beauty_wellness">Beauty & Wellness</option>
+        <option value="fitness_sports">Fitness & Sports</option>
+        <option value="retail">Retail & Shopping</option>
+        <option value="automotive">Automotive</option>
+        <option value="health_medical">Health & Medical</option>
+        <option value="services">Professional Services</option>
+        <option value="entertainment">Entertainment & Leisure</option>
+    </select>
+</div>
+
+                        <div class="control-group" id="business-subtypes-container" style="display: none;">
+                            <label>Business Details <span class="optional-text">(select all that apply)</span></label>
+                            <div class="multi-select-wrapper">
+                                <div class="multi-select-input">
+                                    <div id="selected-subtypes" class="selected-tags">
+                                        <span class="placeholder">Click to select tags...</span>
+                                    </div>
+                                    <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                                    </svg>
+                                </div>
+                                <div id="subtype-dropdown" class="subtype-dropdown" style="display: none;"></div>
+                            </div>
+                        </div>
+                        
+<div class="control-group">
+    <label for="location-name">Address <span class="required-asterisk">*</span></label>
+    <input type="text" id="location-name" placeholder="e.g., Via Roma 123, Milano" required>
+    <div class="checkbox-wrapper">
+        <input type="checkbox" id="show-location">
+        <label for="show-location">Show location on card</label>
+    </div>
+</div>
+                        <div class="control-group">
+                            <label>Background</label>
+                            <div class="upload-area" id="bg-upload">
+                                <input type="file" id="bg-input" accept="image/*" hidden>
+                                <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
+                                </svg>
+                                <span>Upload Background Image</span>
+                                <small>Recommended: 450x280px</small>
+                            </div>
+                            <div class="opacity-control" id="opacity-control" style="display: none;">
+                                <label for="bg-opacity">Image Transparency</label>
+                                <div class="slider-container">
+                                    <input type="range" id="bg-opacity" min="30" max="100" value="70" step="5">
+                                    <span class="slider-value" id="opacity-value">70%</span>
+                                </div>
+                                <small>Adjust transparency to make stamps more visible</small>
+                            </div>
+                            <div class="color-fallback">
+                                <label>Or use solid color:</label>
+                                <input type="color" id="bg-color" value="#7c5ce6">
+                            </div>
+                        </div>
+                        
+                        <div class="control-group">
+                            <label>Logo</label>
+                            <div class="upload-area" id="logo-upload">
+                                <input type="file" id="logo-input" accept="image/*" hidden>
+                                <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                                </svg>
+                                <span>Upload Logo</span>
+                                <small>Recommended: 120x120px</small>
+                            </div>
+                        </div>
+                        
+                    <div class="control-group">
+                        <label for="stamps-required">Stamps Required <span class="required-asterisk">*</span></label>
+                        <select id="stamps-required" required>
+                            <option value="6">6 Stamps</option>
+                            <option value="8">8 Stamps</option>
+                            <option value="10" selected>10 Stamps</option>
+                            <option value="12">12 Stamps</option>
+                            <option value="14">14 Stamps</option>
+                            <option value="16">16 Stamps</option>
+                            <option value="18">18 Stamps</option>
+                            <option value="20">20 Stamps</option>
+                        </select>
+                    </div>
+
+                        
+                        <div class="control-group">
+                            <label for="reward-text">Reward Text</label>
+                            <input type="text" id="reward-text" placeholder="e.g., Free Coffee" value="Free Item">
+                        </div>
+                        
+                        <button class="save-btn" id="create-card-btn">
+                            <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                            </svg>
+                            Create Card
+                        </button>
+                    </div>
+                </div>
+            </section>
+            
+            <!-- ========== PROMOTIONS SECTION ========== -->
+            <section class="content-section" id="promotions-section">
+                <div class="section-header">
+                    <div class="header-main">
+                        <h1>Promotions</h1>
+                        <p>Create and manage daily deals and special offers</p>
+                    </div>
+                    <button class="btn-primary" id="create-promotion-btn">
+                        <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                        </svg>
+                        Create Promotion
+                    </button>
+                </div>
+                
+                <div class="promotions-usage-indicator"></div>
+                
+    <div class="promotion-tabs">
+        <button class="tab-btn active" data-tab="active">Active <span class="tab-count">(0)</span></button>
+        <button class="tab-btn" data-tab="past">Past <span class="tab-count">(0)</span></button>
+        <button class="tab-btn" data-tab="draft">Drafts <span class="tab-count">(0)</span></button>
+    </div>
+    
+    <!-- Tab contents with Past section added -->
+    <div class="tab-content active" id="active-promotions"></div>
+    <div class="tab-content" id="past-promotions" style="display: none;"></div>
+    <div class="tab-content" id="draft-promotions" style="display: none;"></div>
+</section>
+            
+            <!-- ========== EVENTS SECTION ========== -->
+            <section class="content-section" id="events-section">
+                <div class="section-header">
+                    <div class="header-main">
+                        <h1>Events</h1>
+                        <p>Manage your upcoming events and special occasions</p>
+                    </div>
+                    <button class="btn-primary" id="create-event-btn">
+                        <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                        </svg>
+                        Create Event
+                    </button>
+                </div>
+                
+                <div class="events-usage-indicator"></div>
+                
+                <div class="event-tabs">
+                    <button class="tab-btn active" data-tab="all">Events <span class="tab-count">(0)</span></button>
+                    <button class="tab-btn" data-tab="past">Past <span class="tab-count">(0)</span></button>
+                    <button class="tab-btn" data-tab="draft">Drafts <span class="tab-count">(0)</span></button>
+                </div>
+                
+                <button id="calendar-view-btn" class="view-toggle-btn">
+                    <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                    </svg>
+                    Calendar View
+                </button>
+                
+                <div class="tab-content active">
+                    <div id="events-list"></div>
+                </div>
+                
+                <div class="tab-content" style="display: none;">
+                    <div id="past-events"></div>
+                </div>
+                
+                <div class="tab-content" style="display: none;">
+                    <div id="draft-events"></div>
+                </div>
+            </section>
+            
+            <!-- ========== NOTIFICATIONS SECTION ========== -->
+            <section class="content-section" id="notifications-section">
+                <div class="section-header">
+                    <div class="header-main">
+                        <h1>Push Notifications</h1>
+                        <p>Send targeted messages to your customers</p>
+                    </div>
+                    <button class="btn-primary" id="send-notification-btn">
+                        <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/>
+                        </svg>
+                        Send Notification
+                    </button>
+                </div>
+                
+                <div class="notifications-usage-indicator"></div>
+                
+                <div class="notification-templates">
+                    <h3>Quick Templates</h3>
+                    <div class="template-grid">
+                        <button class="notification-template" data-template="promotion">
+                            <svg width="24" height="24" fill="currentColor" viewBox="0 0 24 24">
+                                <path d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A2 2 0 013 12V7a4 4 0 014-4z"/>
+                            </svg>
+                            <span>Promotion</span>
+                        </button>
+                        <button class="notification-template" data-template="event">
+                            <svg width="24" height="24" fill="currentColor" viewBox="0 0 24 24">
+                                <path d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                            </svg>
+                            <span>Event</span>
+                        </button>
+                        <button class="notification-template" data-template="reward">
+                            <svg width="24" height="24" fill="currentColor" viewBox="0 0 24 24">
+                                <path d="M12 2L2 7v10c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V7l-10-5z"/>
+                            </svg>
+                            <span>Reward</span>
+                        </button>
+                        <button class="notification-template" data-template="custom">
+                            <svg width="24" height="24" fill="currentColor" viewBox="0 0 24 24">
+                                <path d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+                            </svg>
+                            <span>Custom</span>
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="notification-tabs">
+                    <button class="tab-btn active" data-tab="scheduled">Scheduled</button>
+                    <button class="tab-btn" data-tab="history">History</button>
+                </div>
+                
+                <div class="tab-content active" id="scheduled-tab">
+                    <div id="scheduled-list" class="scheduled-list"></div>
+                </div>
+                
+                <div class="tab-content" id="history-tab">
+                    <div id="history-list" class="history-list"></div>
+                </div>
+                
+                <div id="notification-stats" class="stats-container"></div>
+            </section>
+            
+            <!-- ========== ANALYTICS SECTION ========== -->
+            <section class="content-section" id="analytics-section">
+                <div class="section-header">
+                    <h1>Analytics</h1>
+                    <p>Track your loyalty program performance</p>
+                </div>
+                
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-label">Active Customers</div>
+                        <div class="stat-value">0</div>
+                        <div class="stat-trend">Loading...</div>
+                    </div>
+                    
+                    <div class="stat-card">
+                        <div class="stat-label">Total Stamps Given</div>
+                        <div class="stat-value">0</div>
+                        <div class="stat-trend">Loading...</div>
+                    </div>
+                    
+                    <div class="stat-card">
+                        <div class="stat-label">Rewards Redeemed</div>
+                        <div class="stat-value">0</div>
+                        <div class="stat-trend">Loading...</div>
+                    </div>
+                    
+                    <div class="stat-card">
+                        <div class="stat-label">Avg. Completion Time</div>
+                        <div class="stat-value">-- days</div>
+                        <div class="stat-trend">No data</div>
+                    </div>
+                </div>
+                
+                <div class="chart-container">
+                    <h3>Stamps Given (Last 30 Days)</h3>
+                    <div class="chart-placeholder">
+                        <div class="chart-loading">
+                            <div class="loading-spinner"></div>
+                            <p>Loading chart data...</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+            
+            <!-- ========== SETTINGS SECTION ========== -->
+            <section class="content-section" id="settings-section">
+                <div class="section-header">
+                    <h1>Settings & Billing</h1>
+                    <p>Manage your account, subscription, and billing</p>
+                </div>
+                
+                <div class="settings-grid">
+                    <div class="billing-overview"></div>
+                    <div class="settings-card">
+                        
+                        <h2>Restaurant Information</h2>
+                        <div class="settings-form">
+                            <div class="form-group">
+                                <label for="restaurant-name-input">Restaurant Name</label>
+                                <input type="text" id="restaurant-name-input" placeholder="Your Restaurant Name">
+                            </div>
+                            <div class="form-group">
+                                <label for="restaurant-address">Address</label>
+                                <input type="text" id="restaurant-address" placeholder="Via Roma 123, Milano">
+                            </div>
+                            <div class="form-group">
+                                <label for="restaurant-vat">VAT Number</label>
+                                <input type="text" id="restaurant-vat" placeholder="IT12345678901">
+                            </div>
+                            <button class="btn-primary btn-update-restaurant">Update Information</button>
+                        </div>
+                    </div>
+                    
+                    <div class="settings-card">
+                        <h2>Staff Management</h2>
+                        <p class="card-description">Add team members who can manage loyalty cards</p>
+                        <div class="staff-management">
+                            <div class="staff-add">
+                                <input type="email" id="new-staff-email" placeholder="staff@example.com">
+                                <button class="btn-add">Add Staff</button>
+                            </div>
+                            <div class="staff-list"></div>
+                        </div>
+                    </div>
+                    
+
+                </div>
+            </section>
+        </main>
+    </div>
+    
+    <!-- ==================== MODALS ==================== -->
+    
+    <!-- Success Modal -->
+    <div class="modal" id="success-modal" style="display: none;">
+        <div class="modal-content">
+            <svg width="48" height="48" fill="none" stroke="#10b981" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+            </svg>
+            <h2>Card Created Successfully!</h2>
+            <p>Your loyalty card has been created and saved.</p>
+            <div class="modal-actions">
+                <button class="btn-secondary" id="create-another-btn">Create Another</button>
+                <button class="btn-primary" id="go-to-my-cards-btn">Manage in My Cards</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- QR Code Modal -->
+    <div class="modal" id="qr-modal" style="display: none;">
+        <div class="modal-content qr-modal-content">
+            <h2>Your Loyalty Card QR Code</h2>
+            <p>Download and print this QR code for your business</p>
+            
+            <div class="qr-display">
+                <canvas id="qr-canvas"></canvas>
+            </div>
+            
+            <div class="qr-info">
+                <p><strong>Business:</strong> <span id="qr-restaurant-name"></span></p>
+                <p><strong>Card:</strong> <span id="qr-card-name"></span></p>
+                <p><strong>QR Code:</strong> <span id="qr-code-value"></span></p>
+            </div>
+            
+            <div class="modal-actions">
+                <button class="btn-secondary" onclick="closeQRModal()">Close</button>
+                <button class="btn-primary" onclick="downloadQRCode()">
+                    <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                    </svg>
+                    Download QR Code
+                </button>
+            </div>
+        </div>
+    </div>
+
+   <!-- Event Modal with Loyalty Card Selection -->
+<div id="event-modal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2 id="event-modal-title">Create Event</h2>
+            <button class="modal-close" onclick="closeEventModal()">×</button>
+        </div>
+        
+        <form id="event-form">
+            <input type="hidden" id="event-id" value="">
+            
+            <!-- CRITICAL: Select which loyalty card/location this event is for -->
+            <div class="form-group" style="background: #f3f4f6; padding: 12px; border-radius: 8px; margin-bottom: 20px;">
+                <label for="event-loyalty-card" style="font-weight: 600; color: #111827;">
+                    Location / Loyalty Card *
+                    <span style="font-weight: 400; font-size: 12px; color: #6b7280; display: block; margin-top: 4px;">
+                        Select which location this event will be held at
+                    </span>
+                </label>
+                <select id="event-loyalty-card" class="form-control" required style="margin-top: 8px;">
+                    <option value="">-- Select a location --</option>
+                    <!-- Will be populated dynamically with loyalty cards -->
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label for="event-title">Event Title *</label>
+                <input type="text" id="event-title" class="form-control" placeholder="e.g., Wine Tasting Night" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="event-description">Description</label>
+                <textarea id="event-description" class="form-control" rows="3" placeholder="Describe your event..."></textarea>
+            </div>
+            
+            <div class="form-group">
+                <label for="event-date">Date *</label>
+                <input type="date" id="event-date" class="form-control" required>
+            </div>
+            
+            <div class="form-row">
+                <div class="form-group col-6">
+                    <label for="event-time">Start Time</label>
+                    <input type="time" id="event-time" class="form-control">
+                </div>
+                <div class="form-group col-6">
+                    <label for="event-end-time">End Time</label>
+                    <input type="time" id="event-end-time" class="form-control">
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label for="event-capacity">Capacity (Optional)</label>
+                <input type="number" id="event-capacity" class="form-control" placeholder="Maximum number of guests" min="1">
+            </div>
+            
+            <div class="form-group">
+                <label>Event Background</label>
+                <div id="event-image-upload" class="image-upload-area">
+                    <input type="file" id="event-image-input" accept="image/*" hidden>
+                    <div class="upload-placeholder">
+                        <svg width="40" height="40" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                        </svg>
+                        <span>Click to upload image</span>
+                        <small>Recommended: 1200×600px</small>
+                    </div>
+                    <img id="event-image-preview" style="display: none; width: 100%; max-height: 200px; object-fit: cover; border-radius: 8px;">
+                </div>
+                
+                <div class="color-fallback" style="margin-top: 12px;">
+                    <label style="display: block; margin-bottom: 8px; font-size: 14px; color: #6b7280;">Or use solid color:</label>
+                    <div style="display: flex; align-items: center; gap: 12px;">
+                        <input type="color" id="event-bg-color" value="#7c5ce6" style="width: 50px; height: 38px; border: 1px solid #e5e7eb; border-radius: 6px; cursor: pointer;">
+                        <span style="font-size: 13px; color: #9ca3af;">Default: Purple gradient</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label for="event-status">Status</label>
+                <select id="event-status" class="form-control">
+                    <option value="draft">Save as Draft</option>
+                    <option value="active">Make Live</option>
+                </select>
+            </div>
+        </form>
+        
+        <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" onclick="closeEventModal()">Cancel</button>
+            <button type="button" class="btn btn-primary" onclick="saveEvent()">
+                <span id="event-save-text">Create Event</span>
+            </button>
+        </div>
+    </div>
+</div>
+
+ <!-- Promotion Modal with Loyalty Card Selection -->
+<div id="promotion-modal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2 id="promotion-modal-title">Create Promotion</h2>
+            <button class="modal-close" onclick="closePromotionModal()">×</button>
+        </div>
+        
+        <form id="promotion-form">
+            <input type="hidden" id="promotion-id" value="">
+            
+            <!-- CRITICAL: Select which loyalty card/location this promotion is for -->
+            <div class="form-group" style="background: #f3f4f6; padding: 12px; border-radius: 8px; margin-bottom: 20px;">
+                <label for="promotion-loyalty-card" style="font-weight: 600; color: #111827;">
+                    Location / Loyalty Card *
+                    <span style="font-weight: 400; font-size: 12px; color: #6b7280; display: block; margin-top: 4px;">
+                        Select which location this promotion applies to
+                    </span>
+                </label>
+                <select id="promotion-loyalty-card" class="form-control" required style="margin-top: 8px;">
+                    <option value="">-- Select a location --</option>
+                    <!-- Will be populated dynamically with loyalty cards -->
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label for="promotion-title">Promotion Title *</label>
+                <input type="text" id="promotion-title" class="form-control" placeholder="e.g., Happy Hour Special" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="promotion-description">Description</label>
+                <textarea id="promotion-description" class="form-control" rows="3" placeholder="Describe your promotion..."></textarea>
+            </div>
+            
+            <div class="form-row">
+                <div class="form-group col-6">
+                    <label for="promotion-start-date">Start Date *</label>
+                    <input type="date" id="promotion-start-date" class="form-control" required>
+                </div>
+                <div class="form-group col-6">
+                    <label for="promotion-end-date">End Date</label>
+                    <input type="date" id="promotion-end-date" class="form-control">
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label>Active Days *</label>
+                <div class="checkbox-group">
+                    <label><input type="checkbox" name="recurring_days" value="monday"> Monday</label>
+                    <label><input type="checkbox" name="recurring_days" value="tuesday"> Tuesday</label>
+                    <label><input type="checkbox" name="recurring_days" value="wednesday"> Wednesday</label>
+                    <label><input type="checkbox" name="recurring_days" value="thursday"> Thursday</label>
+                    <label><input type="checkbox" name="recurring_days" value="friday"> Friday</label>
+                    <label><input type="checkbox" name="recurring_days" value="saturday"> Saturday</label>
+                    <label><input type="checkbox" name="recurring_days" value="sunday"> Sunday</label>
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label for="promotion-time">Time Restrictions (Optional)</label>
+                <input type="text" id="promotion-time" class="form-control" placeholder="e.g., 5:00 PM - 7:00 PM">
+            </div>
+            
+            <div class="form-group">
+                <label>Promotion Background</label>
+                <div id="promotion-image-upload" class="image-upload-area">
+                    <input type="file" id="promotion-image-input" accept="image/*" hidden>
+                    <div class="upload-placeholder">
+                        <svg width="40" height="40" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                        </svg>
+                        <span>Click to upload image</span>
+                        <small>Recommended: 1200×600px</small>
+                    </div>
+                    <img id="promotion-image-preview" style="display: none; width: 100%; max-height: 200px; object-fit: cover; border-radius: 8px;">
+                </div>
+                
+                <div class="color-fallback" style="margin-top: 12px;">
+                    <label style="display: block; margin-bottom: 8px; font-size: 14px; color: #6b7280;">Or use solid color:</label>
+                    <div style="display: flex; align-items: center; gap: 12px;">
+                        <input type="color" id="promotion-bg-color" value="#7c5ce6" style="width: 50px; height: 38px; border: 1px solid #e5e7eb; border-radius: 6px; cursor: pointer;">
+                        <span style="font-size: 13px; color: #9ca3af;">Default: Purple gradient</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label for="promotion-status">Status</label>
+                <select id="promotion-status" class="form-control">
+                    <option value="draft">Save as Draft</option>
+                    <option value="active">Make Live</option>
+                </select>
+            </div>
+        </form>
+        
+        <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" onclick="closePromotionModal()">Cancel</button>
+            <button type="button" class="btn btn-primary" onclick="savePromotion()">
+                <span id="promotion-save-text">Create Promotion</span>
+            </button>
+        </div>
+    </div>
+</div>
+
+    <!-- Notification Modal -->
+    <div id="notification-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Send Push Notification</h2>
+                <button class="modal-close" onclick="closeNotificationModal()">×</button>
+            </div>
+            
+            <form id="notification-form">
+                <input type="hidden" id="notification-id" value="">
+                
+                <div class="form-group">
+                    <label for="notification-related-selector">
+                        <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="display: inline-block; vertical-align: middle; margin-right: 4px;">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                        </svg>
+                        Link to Event or Promotion (Optional)
+                    </label>
+                    <select id="notification-related-selector" class="form-control">
+                        <option value="none">-- Select an event or promotion (optional) --</option>
+                    </select>
+                    <small class="form-text">Selecting an item will pre-fill the notification details</small>
+                </div>
+                
+                <div class="form-group">
+                    <label for="notification-type">Notification Type</label>
+                    <select id="notification-type" class="form-control" required>
+                        <option value="custom">Custom Message</option>
+                        <option value="event">Event Announcement</option>
+                        <option value="promotion">Promotion Alert</option>
+                        <option value="loyalty">Loyalty Reward</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="notification-title">Title</label>
+                    <input type="text" id="notification-title" class="form-control" placeholder="e.g., Special Weekend Offer!" maxlength="50" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="notification-message">
+                        Message 
+                        <span class="char-counter">
+                            <span id="notification-chars">0</span>/250
+                        </span>
+                    </label>
+                    <textarea id="notification-message" class="form-control" rows="3" placeholder="Your notification message..." maxlength="250" required></textarea>
+                </div>
+                
+                <div class="form-group">
+                    <label>When to Send</label>
+                    <div class="radio-group">
+                        <label class="radio-label">
+                            <input type="radio" name="schedule" value="now" checked>
+                            <span>Send Now</span>
+                        </label>
+                        <label class="radio-label">
+                            <input type="radio" name="schedule" value="scheduled">
+                            <span>Schedule for Later</span>
+                        </label>
+                    </div>
+                </div>
+                
+                <div id="schedule-picker" style="display: none;">
+                    <div class="form-row">
+                        <div class="form-group col-6">
+                            <label for="notification-date">Date</label>
+                            <input type="date" id="notification-date" class="form-control">
+                        </div>
+                        <div class="form-group col-6">
+                            <label for="notification-time">Time</label>
+                            <input type="time" id="notification-time" class="form-control">
+                        </div>
+                    </div>
+                    
+                    <div class="time-suggestions">
+                        <small>Quick select:</small>
+                        <div class="suggestion-chips">
+                            <button type="button" class="suggestion-chip" data-time="12:00">Lunch (12:00)</button>
+                            <button type="button" class="suggestion-chip" data-time="18:00">Dinner (6:00 PM)</button>
+                            <button type="button" class="suggestion-chip" data-time="20:00">Evening (8:00 PM)</button>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="notification-preview">
+                    <h4>Preview</h4>
+                    <div class="phone-mockup">
+                        <div class="notification-item">
+                            <div class="notification-icon">🍽️</div>
+                            <div class="notification-content">
+                                <div class="notification-title" id="preview-title">Your Restaurant</div>
+                                <div class="notification-message" id="preview-message">Your message will appear here</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </form>
+            
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="closeNotificationModal()">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="sendNotification()">
+                    <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/>
+                    </svg>
+                    <span id="notification-send-text">Send Notification</span>
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- ==================== SCRIPTS ==================== -->
+    <script src="../shared/supabase-client.js"></script>
+    <script src="./subscription-manager.js"></script>
+    <script src="./image-processor.js"></script>
+    <script src="./business-categories.js"></script>
+    <script src="./card-designer.js"></script>
+    <script src="./cards-manager.js"></script>
+    <script src="./promotions.js"></script>
+    <script src="./events.js"></script>
+    <script src="./notifications.js"></script>
+    <script src="./modals.js"></script>
+    <script src="./analytics.js"></script>
+    <script src="./settings-billing.js"></script>
+    <script src="./main.js"></script>
+</body>
+</html>

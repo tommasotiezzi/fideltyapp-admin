@@ -1,0 +1,501 @@
+/* notifications.css - Push Notifications Section Styles */
+
+/* ==================== NOTIFICATIONS SECTION ==================== */
+
+/* Notification Limit */
+.notification-limit {
+    background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+    border: 1px solid #93c5fd;
+    border-radius: 12px;
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+    position: relative;
+}
+
+.notification-limit.warning {
+    background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+    border-color: #f59e0b;
+}
+
+.notification-limit.exhausted {
+    background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
+    border-color: #ef4444;
+}
+
+.limit-info {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+}
+
+.limit-info svg {
+    flex-shrink: 0;
+    color: #3b82f6;
+}
+
+.notification-limit.warning .limit-info svg {
+    color: #f59e0b;
+}
+
+.notification-limit.exhausted .limit-info svg {
+    color: #ef4444;
+}
+
+.reset-date {
+    font-size: 0.813rem;
+    color: #64748b;
+    margin-top: 0.75rem;
+}
+
+.reset-date span {
+    font-weight: 600;
+    color: #475569;
+}
+
+/* Notification Tabs */
+.notification-tabs {
+    display: flex;
+    gap: 0.5rem;
+    border-bottom: 1px solid #e5e7eb;
+    margin-bottom: 1.5rem;
+}
+
+.tab-btn {
+    padding: 0.75rem 1.5rem;
+    background: transparent;
+    border: none;
+    border-bottom: 2px solid transparent;
+    color: #6b7280;
+    font-size: 0.875rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+    margin-bottom: -1px;
+}
+
+.tab-btn:hover {
+    color: #374151;
+}
+
+.tab-btn.active {
+    color: #7c5ce6;
+    border-bottom-color: #7c5ce6;
+}
+
+.tab-content {
+    display: none;
+}
+
+.tab-content.active {
+    display: block;
+}
+
+/* Scheduled List */
+.scheduled-list {
+    display: grid;
+    gap: 1rem;
+}
+
+.scheduled-item {
+    background: white;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    padding: 1.5rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1.5rem;
+}
+
+.scheduled-content {
+    flex: 1;
+}
+
+.scheduled-header {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 0.75rem;
+}
+
+.notification-type-badge {
+    padding: 0.25rem 0.75rem;
+    border-radius: 20px;
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+.notification-type-badge.promotion {
+    background: #f3e8ff;
+    color: #8b5cf6;
+}
+
+.notification-type-badge.event {
+    background: #fee4e2;
+    color: #ea580c;
+}
+
+.notification-type-badge.custom {
+    background: #dcfce7;
+    color: #16a34a;
+}
+
+.scheduled-title {
+    font-size: 1rem;
+    font-weight: 600;
+    color: #111827;
+}
+
+.scheduled-message {
+    color: #4b5563;
+    font-size: 0.875rem;
+    line-height: 1.5;
+    margin-bottom: 0.75rem;
+}
+
+.scheduled-time {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: #6b7280;
+    font-size: 0.813rem;
+}
+
+.scheduled-time svg {
+    width: 16px;
+    height: 16px;
+}
+
+.scheduled-actions {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.scheduled-action-btn {
+    padding: 0.5rem 1rem;
+    border: 1px solid #e5e7eb;
+    background: white;
+    border-radius: 8px;
+    color: #6b7280;
+    font-size: 0.813rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.scheduled-action-btn:hover {
+    background: #f9fafb;
+    color: #374151;
+}
+
+.scheduled-action-btn.send-now {
+    background: #7c5ce6;
+    border-color: #7c5ce6;
+    color: white;
+}
+
+.scheduled-action-btn.send-now:hover {
+    background: #6c4fd8;
+}
+
+.scheduled-action-btn.cancel {
+    color: #ef4444;
+    border-color: #fecaca;
+}
+
+.scheduled-action-btn.cancel:hover {
+    background: #fee2e2;
+}
+
+/* History List */
+.history-list {
+    display: grid;
+    gap: 1rem;
+}
+
+.history-item {
+    background: white;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    padding: 1.5rem;
+}
+
+.history-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 1rem;
+}
+
+.history-title {
+    font-size: 1rem;
+    font-weight: 600;
+    color: #111827;
+    margin-bottom: 0.25rem;
+}
+
+.history-timestamp {
+    color: #6b7280;
+    font-size: 0.813rem;
+}
+
+.history-message {
+    color: #4b5563;
+    font-size: 0.875rem;
+    line-height: 1.5;
+    padding: 0.75rem;
+    background: #f9fafb;
+    border-radius: 8px;
+    margin-bottom: 1rem;
+}
+
+.history-stats {
+    display: flex;
+    gap: 2rem;
+    padding-top: 1rem;
+    border-top: 1px solid #f3f4f6;
+}
+
+.history-stat {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.stat-label {
+    font-size: 0.75rem;
+    color: #6b7280;
+    text-transform: uppercase;
+}
+
+.stat-value {
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: #111827;
+}
+
+/* Notification Composer Modal Styles */
+.notification-composer {
+    max-width: 600px;
+}
+
+.composer-form {
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+}
+
+.form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.form-group label {
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: #374151;
+}
+
+.form-group input,
+.form-group select,
+.form-group textarea {
+    padding: 0.75rem;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    font-size: 0.875rem;
+    transition: all 0.2s;
+}
+
+.form-group input:focus,
+.form-group select:focus,
+.form-group textarea:focus {
+    outline: none;
+    border-color: #7c5ce6;
+    box-shadow: 0 0 0 3px rgba(124, 92, 230, 0.1);
+}
+
+.form-group textarea {
+    min-height: 100px;
+    resize: vertical;
+}
+
+.character-count {
+    font-size: 0.75rem;
+    color: #6b7280;
+    text-align: right;
+}
+
+.character-count.warning {
+    color: #f59e0b;
+}
+
+.character-count.error {
+    color: #ef4444;
+}
+
+/* Smart Suggestions */
+.smart-suggestions {
+    background: #f9fafb;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    padding: 1rem;
+}
+
+.suggestions-title {
+    font-size: 0.813rem;
+    font-weight: 600;
+    color: #374151;
+    margin-bottom: 0.75rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.suggestions-title svg {
+    width: 16px;
+    height: 16px;
+    color: #fbbf24;
+}
+
+.suggestion-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.suggestion-chip {
+    padding: 0.5rem 0.75rem;
+    background: white;
+    border: 1px solid #e5e7eb;
+    border-radius: 20px;
+    font-size: 0.813rem;
+    color: #6b7280;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.suggestion-chip:hover {
+    background: #7c5ce6;
+    border-color: #7c5ce6;
+    color: white;
+}
+
+/* Schedule Picker */
+.schedule-picker {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+}
+
+.datetime-input {
+    position: relative;
+}
+
+.datetime-input input {
+    width: 100%;
+    padding-left: 2.5rem;
+}
+
+.datetime-input svg {
+    position: absolute;
+    left: 0.75rem;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 18px;
+    height: 18px;
+    color: #6b7280;
+}
+
+/* Preview Section */
+.notification-preview {
+    background: #f9fafb;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    padding: 1rem;
+}
+
+.preview-title {
+    font-size: 0.813rem;
+    font-weight: 600;
+    color: #374151;
+    margin-bottom: 0.75rem;
+}
+
+.preview-device {
+    background: white;
+    border: 2px solid #1a1a1a;
+    border-radius: 20px;
+    padding: 1rem;
+    max-width: 300px;
+    margin: 0 auto;
+}
+
+.preview-notification {
+    background: white;
+    border-radius: 12px;
+    padding: 1rem;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.preview-app-icon {
+    width: 40px;
+    height: 40px;
+    background: #7c5ce6;
+    border-radius: 8px;
+    margin-bottom: 0.5rem;
+}
+
+.preview-notification-title {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: #111827;
+    margin-bottom: 0.25rem;
+}
+
+.preview-notification-body {
+    font-size: 0.813rem;
+    color: #6b7280;
+    line-height: 1.4;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .scheduled-item {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    .scheduled-actions {
+        justify-content: stretch;
+    }
+    
+    .scheduled-action-btn {
+        flex: 1;
+    }
+    
+    .history-stats {
+        flex-direction: column;
+        gap: 1rem;
+    }
+    
+    .schedule-picker {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 480px) {
+    .notification-tabs {
+        width: 100%;
+    }
+    
+    .tab-btn {
+        flex: 1;
+        text-align: center;
+    }
+    
+    .suggestion-chips {
+        justify-content: center;
+    }
+}

@@ -1,0 +1,358 @@
+/* promotions.css - Matching Events Page Style */
+
+/* ==================== PROMOTIONS SECTION ==================== */
+
+/* Usage Indicator Banner */
+.promotions-usage-indicator {
+    margin-bottom: 20px;
+}
+
+.usage-banner {
+    background: #f3f4f6;
+    border-radius: 8px;
+    padding: 12px 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 14px;
+    color: #4b5563;
+}
+
+.usage-banner.at-limit {
+    background: #fee2e2;
+    color: #dc2626;
+}
+
+.usage-banner svg {
+    flex-shrink: 0;
+}
+
+.usage-text {
+    flex: 1;
+}
+
+.usage-bar {
+    flex: 1;
+    height: 6px;
+    background: rgba(0, 0, 0, 0.1);
+    border-radius: 3px;
+    overflow: hidden;
+    margin-left: 12px;
+}
+
+.usage-progress {
+    height: 100%;
+    background: linear-gradient(90deg, #7c5ce6 0%, #6c4fd8 100%);
+    border-radius: 3px;
+    transition: width 0.3s ease;
+}
+
+.btn-upgrade-inline {
+    margin-left: auto;
+    padding: 4px 12px;
+    background: white;
+    border: 1px solid #e5e7eb;
+    border-radius: 6px;
+    color: #7c5ce6;
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-upgrade-inline:hover {
+    background: #7c5ce6;
+    color: white;
+}
+
+/* Tabs */
+.promotion-tabs {
+    display: flex;
+    gap: 24px;
+    margin: 24px 0;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.promotion-tabs .tab-btn {
+    padding: 12px 0;
+    background: none;
+    border: none;
+    border-bottom: 2px solid transparent;
+    color: #9ca3af;
+    font-size: 15px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.promotion-tabs .tab-btn:hover {
+    color: #6b7280;
+}
+
+.promotion-tabs .tab-btn.active {
+    color: #7c5ce6;
+    border-bottom-color: #7c5ce6;
+}
+
+/* Promotions Grid */
+.promotions-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 16px;
+    margin-top: 20px;
+}
+
+/* Compact Promotion Card - Matching Event Card Style */
+.promotion-card-compact {
+    background: white;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    padding: 16px;
+    position: relative;
+    transition: all 0.2s ease;
+}
+
+.promotion-card-compact:hover {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    transform: translateY(-1px);
+}
+
+.promotion-card-compact.active {
+    border-color: #10b981;
+}
+
+.promotion-card-compact.draft {
+    border-color: #9ca3af;
+    background: #fafafa;
+}
+
+/* Card Header */
+.promotion-card-header {
+    display: flex;
+    gap: 16px;
+    align-items: flex-start;
+}
+
+/* Visual Badge - Matching Event Date Style */
+.promotion-visual-compact {
+    flex-shrink: 0;
+    width: 48px;
+    height: 48px;
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-weight: 600;
+    position: relative;
+    overflow: hidden;
+}
+
+.promotion-visual-compact svg {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+}
+
+/* Promotion Info */
+.promotion-info-compact {
+    flex: 1;
+    min-width: 0;
+}
+
+.promotion-info-compact h4 {
+    margin: 0 0 4px 0;
+    font-size: 16px;
+    font-weight: 600;
+    color: #1f2937;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.promotion-info-compact p {
+    margin: 0 0 8px 0;
+    font-size: 13px;
+    color: #6b7280;
+    line-height: 1.4;
+}
+
+/* Promotion Meta */
+.promotion-meta-compact {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.promotion-meta-compact span {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 12px;
+    color: #9ca3af;
+}
+
+.promotion-meta-compact svg {
+    flex-shrink: 0;
+}
+
+/* Compact Actions - Matching Event Actions */
+.promotion-actions-compact {
+    display: flex;
+    gap: 6px;
+    margin-left: auto;
+}
+
+.promotion-actions-compact .btn-action {
+    width: 32px;
+    height: 32px;
+    border-radius: 6px;
+    border: 1px solid #e5e7eb;
+    background: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.promotion-actions-compact .btn-action:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+}
+
+.promotion-actions-compact .btn-edit {
+    color: #6366f1;
+}
+
+.promotion-actions-compact .btn-edit:hover {
+    background: rgba(99, 102, 241, 0.05);
+    border-color: #6366f1;
+}
+
+.promotion-actions-compact .btn-live {
+    color: #10b981;
+}
+
+.promotion-actions-compact .btn-live:hover {
+    background: rgba(16, 185, 129, 0.05);
+    border-color: #10b981;
+}
+
+.promotion-actions-compact .btn-pause {
+    color: #f59e0b;
+}
+
+.promotion-actions-compact .btn-pause:hover {
+    background: rgba(245, 158, 11, 0.05);
+    border-color: #f59e0b;
+}
+
+.promotion-actions-compact .btn-delete {
+    color: #ef4444;
+}
+
+.promotion-actions-compact .btn-delete:hover {
+    background: rgba(239, 68, 68, 0.05);
+    border-color: #ef4444;
+}
+
+/* Status Dot Indicator */
+.promotion-status-dot {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+}
+
+.promotion-status-dot.active {
+    background: #10b981;
+    box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.2);
+}
+
+.promotion-status-dot.draft {
+    background: #9ca3af;
+    box-shadow: 0 0 0 2px rgba(156, 163, 175, 0.2);
+}
+
+/* Tooltips */
+.btn-action[data-tooltip] {
+    position: relative;
+}
+
+.btn-action[data-tooltip]:hover::before {
+    content: attr(data-tooltip);
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 4px 8px;
+    background: #1f2937;
+    color: white;
+    font-size: 11px;
+    white-space: nowrap;
+    border-radius: 4px;
+    margin-bottom: 4px;
+    z-index: 10;
+    pointer-events: none;
+}
+
+.btn-action[data-tooltip]:hover::after {
+    content: '';
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    border: 4px solid transparent;
+    border-top-color: #1f2937;
+    margin-bottom: -4px;
+    z-index: 10;
+    pointer-events: none;
+}
+
+/* Empty State */
+.empty-state {
+    text-align: center;
+    padding: 60px 20px;
+    color: #9ca3af;
+}
+
+.empty-state svg {
+    margin: 0 auto 20px;
+    opacity: 0.5;
+}
+
+.empty-state h3 {
+    color: #4b5563;
+    margin: 0 0 8px 0;
+    font-size: 18px;
+}
+
+.empty-state p {
+    margin: 0;
+    font-size: 14px;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .promotions-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .promotion-card-compact {
+        padding: 12px;
+    }
+    
+    .promotion-actions-compact {
+        gap: 4px;
+    }
+    
+    .promotion-actions-compact .btn-action {
+        width: 28px;
+        height: 28px;
+    }
+}

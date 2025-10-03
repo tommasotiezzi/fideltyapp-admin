@@ -1,0 +1,835 @@
+/* card-designer.css - Complete Card Designer Section Styles */
+
+/* Card Designer Container */
+.card-designer {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 2rem;
+    background: white;
+    border-radius: 16px;
+    padding: 2rem;
+}
+
+/* Card Preview Container */
+.card-preview-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+
+.card-preview-container h3 {
+    font-size: 1.125rem;
+    margin-bottom: 1.5rem;
+    color: #1a1a1a;
+    width: 100%;
+    text-align: center;
+}
+
+/* Phone Mockup */
+.phone-mockup {
+    width: 100%;
+    max-width: 480px;
+    padding: 2rem;
+    background: #f5f5f7;
+    border-radius: 24px;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+}
+
+/* Loyalty Card - FIXED ASPECT RATIO */
+.loyalty-card {
+    width: 100%;
+    aspect-ratio: 1.6;
+    border-radius: 16px;
+    overflow: hidden;
+    position: relative;
+    background: #7c5ce6;
+}
+
+.card-background {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg, #7c5ce6 0%, #6c63ff 100%);
+}
+
+.card-bg-image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+/* Card Content - PROPER FLEX LAYOUT WITH ADJUSTED PADDING */
+.card-content {
+    position: relative;
+    height: 100%;
+    padding: 1.25rem;
+    display: flex;
+    flex-direction: column;
+    color: white;
+    box-sizing: border-box;
+}
+
+/* Card Header - SMALLER FOR MORE STAMP SPACE */
+.card-header {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 0.5rem;
+    position: relative;
+    z-index: 1;
+    flex-shrink: 0;
+}
+
+.card-header::before {
+    content: '';
+    position: absolute;
+    inset: -6px;
+    background: linear-gradient(90deg, rgba(0, 0, 0, 0.3) 0%, transparent 100%);
+    border-radius: 10px;
+    z-index: -1;
+}
+
+.card-logo {
+    width: 40px;
+    height: 40px;
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.95);
+    object-fit: contain;
+    padding: 5px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.5);
+    flex-shrink: 0;
+}
+
+.card-title {
+    font-size: 1.125rem;
+    font-weight: 600;
+    flex: 1;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+    color: white;
+    line-height: 1.2;
+}
+
+.card-location {
+    font-size: 0.75rem;
+    opacity: 0.9;
+    margin-top: 2px;
+    font-weight: normal;
+}
+
+/* Stamps Container - FLEX GROW TO FILL SPACE */
+.stamps-container {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.5rem 0;
+    min-height: 0;
+}
+
+/* Stamps Grid - RESPONSIVE SIZING */
+.stamps-grid {
+    width: 100%;
+    display: grid;
+    justify-content: center;
+    justify-items: center;
+    align-items: center;
+    padding: 0.5rem;
+}
+
+/* Base stamp sizing */
+.stamp {
+    aspect-ratio: 1;
+    width: 40px;
+    height: 40px;
+    background: rgba(255, 255, 255, 0.2);
+    border: 2px solid rgba(255, 255, 255, 0.4);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1rem;
+    font-weight: bold;
+    transition: all 0.2s;
+    box-sizing: border-box;
+}
+
+.stamp.filled {
+    background: white;
+    color: #7c5ce6;
+    border-color: white;
+    transform: scale(1.05);
+}
+
+/* Stamp layouts with adjusted sizing for proper fit */
+
+/* 6 stamps - 1 row */
+.stamps-grid[data-count="6"] {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    gap: 0.5rem;
+}
+.stamps-grid[data-count="6"] .stamp {
+    width: 36px;
+    height: 36px;
+    font-size: 0.875rem;
+}
+
+/* 8 stamps - 2 rows of 4 */
+.stamps-grid[data-count="8"] {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 0.5rem;
+}
+.stamps-grid[data-count="8"] .stamp {
+    width: 38px;
+    height: 38px;
+    font-size: 0.875rem;
+}
+
+/* 10 stamps - 2 rows of 5 */
+.stamps-grid[data-count="10"] {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 0.5rem;
+}
+.stamps-grid[data-count="10"] .stamp {
+    width: 36px;
+    height: 36px;
+    font-size: 0.875rem;
+}
+
+/* 12 stamps - 2 rows of 6 */
+.stamps-grid[data-count="12"] {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    gap: 0.4rem;
+}
+.stamps-grid[data-count="12"] .stamp {
+    width: 32px;
+    height: 32px;
+    font-size: 0.75rem;
+}
+
+/* 14 stamps - 2 rows of 7 */
+.stamps-grid[data-count="14"] {
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+    gap: 0.35rem;
+}
+.stamps-grid[data-count="14"] .stamp {
+    width: 28px;
+    height: 28px;
+    font-size: 0.75rem;
+    border-width: 1.5px;
+}
+
+/* 16 stamps - 4 rows of 4 */
+.stamps-grid[data-count="16"] {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 0.35rem;
+}
+.stamps-grid[data-count="16"] .stamp {
+    width: 30px;
+    height: 30px;
+    font-size: 0.75rem;
+    border-width: 1.5px;
+}
+
+/* 18 stamps - 3 rows of 6 */
+.stamps-grid[data-count="18"] {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    gap: 0.3rem;
+}
+.stamps-grid[data-count="18"] .stamp {
+    width: 26px;
+    height: 26px;
+    font-size: 0.7rem;
+    border-width: 1.5px;
+}
+
+/* 20 stamps - 4 rows of 5 */
+.stamps-grid[data-count="20"] {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 0.3rem;
+}
+.stamps-grid[data-count="20"] .stamp {
+    width: 28px;
+    height: 28px;
+    font-size: 0.7rem;
+    border-width: 1.5px;
+}
+
+/* Card Reward - COMPACT BUT READABLE */
+.card-reward {
+    padding-top: 0.75rem;
+    border-top: 1px solid rgba(255, 255, 255, 0.3);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: auto;
+    flex-shrink: 0;
+    min-height: 2rem;
+}
+
+.reward-label {
+    font-size: 0.75rem;
+    opacity: 0.9;
+    flex-shrink: 0;
+}
+
+.reward-text {
+    font-weight: 600;
+    font-size: 0.875rem;
+    text-align: right;
+    flex: 1;
+    margin-left: 0.5rem;
+    line-height: 1.2;
+    word-break: break-word;
+}
+
+/* Adjust reward text size for high stamp counts */
+.stamps-grid[data-count="18"] ~ .card-reward .reward-text,
+.stamps-grid[data-count="20"] ~ .card-reward .reward-text {
+    font-size: 0.75rem;
+}
+
+/* Card Controls */
+.card-controls {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+.card-controls h3 {
+    font-size: 1.25rem;
+    margin-bottom: 2rem;
+    color: #1a1a1a;
+    font-weight: 600;
+}
+
+.control-group {
+    margin-bottom: 1.5rem;
+    position: relative;
+}
+
+.control-group label {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: #333;
+}
+
+/* Form inputs */
+input[type="text"],
+select {
+    width: 100%;
+    padding: 0.75rem 1rem;
+    border: 1px solid #e5e5e7;
+    border-radius: 8px;
+    font-size: 0.875rem;
+    background: white;
+    color: #333;
+    transition: all 0.2s;
+    box-sizing: border-box;
+}
+
+input[type="text"]:hover,
+select:hover {
+    border-color: #7c5ce6;
+}
+
+input[type="text"]:focus,
+select:focus {
+    outline: none;
+    border-color: #7c5ce6;
+    box-shadow: 0 0 0 3px rgba(124, 92, 230, 0.1);
+}
+
+/* Select specific styling */
+select {
+    appearance: none;
+    -webkit-appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' fill='none' stroke='%236b7280' viewBox='0 0 24 24'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 1rem center;
+    padding-right: 2.5rem;
+}
+
+/* Upload Areas */
+.upload-area {
+    border: 2px dashed #e5e5e7;
+    border-radius: 12px;
+    padding: 2rem;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    background: #f9f9f9;
+}
+
+.upload-area:hover {
+    border-color: #7c5ce6;
+    background: #f5f3ff;
+}
+
+.upload-area.has-file {
+    border-color: #10b981;
+    background: #f0fdf4;
+}
+
+.upload-area svg {
+    width: 32px;
+    height: 32px;
+    color: #999;
+    margin-bottom: 0.5rem;
+}
+
+.upload-area span {
+    display: block;
+    color: #666;
+    font-size: 0.875rem;
+    margin-bottom: 0.25rem;
+}
+
+.upload-area small {
+    color: #999;
+    font-size: 0.75rem;
+}
+
+/* Opacity Control */
+.opacity-control {
+    margin-top: 1rem;
+    padding: 1rem;
+    background: #f9f9f9;
+    border-radius: 8px;
+}
+
+.opacity-control label {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-size: 0.813rem;
+    font-weight: 500;
+    color: #333;
+}
+
+.slider-container {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 0.5rem;
+}
+
+input[type="range"] {
+    flex: 1;
+    height: 6px;
+    background: #e5e5e7;
+    border-radius: 3px;
+    outline: none;
+    -webkit-appearance: none;
+}
+
+input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 18px;
+    height: 18px;
+    background: #7c5ce6;
+    border-radius: 50%;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+input[type="range"]::-webkit-slider-thumb:hover {
+    transform: scale(1.1);
+    box-shadow: 0 2px 8px rgba(124, 92, 230, 0.3);
+}
+
+input[type="range"]::-moz-range-thumb {
+    width: 18px;
+    height: 18px;
+    background: #7c5ce6;
+    border-radius: 50%;
+    cursor: pointer;
+    border: none;
+    transition: all 0.2s;
+}
+
+input[type="range"]::-moz-range-thumb:hover {
+    transform: scale(1.1);
+    box-shadow: 0 2px 8px rgba(124, 92, 230, 0.3);
+}
+
+.slider-value {
+    min-width: 45px;
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: #7c5ce6;
+}
+
+.opacity-control small {
+    display: block;
+    color: #999;
+    font-size: 0.75rem;
+}
+
+/* Color Fallback - FIXED */
+.color-fallback {
+    margin-top: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.color-fallback label {
+    margin: 0;
+    font-size: 0.813rem;
+    color: #333;
+    font-weight: 500;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+/* Color picker input styling */
+input[type="color"] {
+    width: 50px;
+    height: 38px;
+    padding: 2px;
+    border: 1px solid #e5e5e7;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s;
+    background: white;
+}
+
+input[type="color"]:hover {
+    border-color: #7c5ce6;
+}
+
+input[type="color"]:focus {
+    outline: none;
+    border-color: #7c5ce6;
+    box-shadow: 0 0 0 3px rgba(124, 92, 230, 0.1);
+}
+
+/* Save Button */
+.save-btn {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.875rem;
+    background: #7c5ce6;
+    color: white;
+    border: none;
+    border-radius: 10px;
+    font-size: 0.875rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    margin-top: 2rem;
+}
+
+.save-btn:hover {
+    background: #6c4fd8;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(124, 92, 230, 0.3);
+}
+
+.save-btn:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+    transform: none;
+}
+
+.save-btn.animate-spin svg {
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+/* Required field indicators */
+.required-asterisk {
+    color: #ef4444;
+    font-weight: 600;
+    margin-left: 2px;
+}
+
+/* Validation Styles - FIXED */
+
+/* Default state - no red border */
+select:invalid,
+input[type="text"]:invalid {
+    border-color: #e5e5e7;
+}
+
+/* Only show red after user interaction */
+select.touched:invalid,
+input[type="text"].touched:invalid {
+    border-color: #ef4444;
+}
+
+select:invalid:focus,
+input[type="text"]:invalid:focus {
+    border-color: #ef4444;
+    box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1);
+}
+
+/* Green border for valid selections */
+select:valid:not([value=""]),
+input[type="text"]:valid:not(:placeholder-shown) {
+    border-color: #10b981;
+}
+
+/* Business Categories Styles */
+#business-type {
+    appearance: none;
+    -webkit-appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' fill='none' stroke='%236b7280' viewBox='0 0 24 24'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 1rem center;
+    padding-right: 2.5rem;
+}
+
+/* Optional text */
+.optional-text {
+    font-size: 0.813rem;
+    color: #999;
+    font-weight: 400;
+}
+
+/* Multi-select wrapper */
+.multi-select-wrapper {
+    position: relative;
+}
+
+.multi-select-input {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    min-height: 44px;
+    padding: 0.75rem 1rem;
+    background: white;
+    border: 1px solid #e5e5e7;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.multi-select-input:hover {
+    border-color: #7c5ce6;
+}
+
+.selected-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    flex: 1;
+}
+
+.selected-tags .placeholder {
+    color: #999;
+    font-size: 0.875rem;
+}
+
+.subtype-tag {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.25rem 0.5rem;
+    background: #7c5ce6;
+    color: white;
+    border-radius: 6px;
+    font-size: 0.75rem;
+    font-weight: 500;
+}
+
+.subtype-tag button {
+    background: none;
+    border: none;
+    color: white;
+    cursor: pointer;
+    font-size: 1rem;
+    padding: 0;
+    margin-left: 0.25rem;
+    opacity: 0.8;
+}
+
+.subtype-tag button:hover {
+    opacity: 1;
+}
+
+.subtype-dropdown {
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0;
+    right: 0;
+    background: white;
+    border: 1px solid #e5e5e7;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    max-height: 300px;
+    overflow: hidden;
+    z-index: 1000;
+}
+
+.subtype-search {
+    width: 100%;
+    padding: 0.75rem 1rem;
+    border: none;
+    border-bottom: 1px solid #e5e5e7;
+    font-size: 0.875rem;
+    background: white;
+    color: #333;
+}
+
+.subtype-search:focus {
+    outline: none;
+    background: #f9f9f9;
+}
+
+.subtype-options {
+    max-height: 250px;
+    overflow-y: auto;
+}
+
+.subtype-option {
+    display: flex;
+    align-items: center;
+    padding: 0.625rem 1rem;
+    cursor: pointer;
+    background: white;
+}
+
+.subtype-option:hover {
+    background: #f9f9f9;
+}
+
+.subtype-option input[type="checkbox"] {
+    margin-right: 0.75rem;
+    accent-color: #7c5ce6;
+}
+
+.subtype-option label {
+    cursor: pointer;
+    flex: 1;
+    font-size: 0.875rem;
+    color: #333;
+}
+
+.checkbox-wrapper {
+    display: flex;
+    align-items: center;
+    margin-top: 0.5rem;
+}
+
+.checkbox-wrapper input[type="checkbox"] {
+    width: auto;
+    margin-right: 0.5rem;
+}
+
+.checkbox-wrapper label {
+    display: inline;
+    font-size: 0.813rem;
+    cursor: pointer;
+}
+
+/* Scrollbar styling */
+.subtype-options::-webkit-scrollbar {
+    width: 6px;
+}
+
+.subtype-options::-webkit-scrollbar-track {
+    background: #f3f4f6;
+}
+
+.subtype-options::-webkit-scrollbar-thumb {
+    background: #d1d5db;
+    border-radius: 3px;
+}
+
+.subtype-options::-webkit-scrollbar-thumb:hover {
+    background: #9ca3af;
+}
+
+/* Places Suggestions */
+.places-suggestions {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: white;
+    border: 1px solid #e5e5e7;
+    border-radius: 8px;
+    margin-top: 4px;
+    max-height: 300px;
+    overflow-y: auto;
+    z-index: 1000;
+    display: none;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.place-suggestion-item {
+    padding: 12px 16px;
+    cursor: pointer;
+    border-bottom: 1px solid #f3f4f6;
+    transition: background-color 0.2s;
+}
+
+.place-suggestion-item:hover {
+    background-color: #f9fafb;
+}
+
+/* Mobile Responsive */
+@media (max-width: 1024px) {
+    .card-designer {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 640px) {
+    .card-designer {
+        padding: 1rem;
+    }
+    
+    .phone-mockup {
+        max-width: 350px;
+        padding: 1.5rem;
+    }
+    
+    .card-content {
+        padding: 1rem;
+    }
+    
+    .card-logo {
+        width: 35px;
+        height: 35px;
+    }
+    
+    .card-title {
+        font-size: 1rem;
+    }
+    
+    /* Further reduce stamp sizes on mobile */
+    .stamps-grid[data-count="14"] .stamp,
+    .stamps-grid[data-count="16"] .stamp {
+        width: 25px;
+        height: 25px;
+        font-size: 0.65rem;
+    }
+    
+    .stamps-grid[data-count="18"] .stamp,
+    .stamps-grid[data-count="20"] .stamp {
+        width: 22px;
+        height: 22px;
+        font-size: 0.6rem;
+    }
+    
+    .card-reward {
+        padding-top: 0.5rem;
+    }
+    
+    .reward-text {
+        font-size: 0.75rem;
+    }
+}
