@@ -73,6 +73,14 @@ const analyticsModule = {
         this.showLoadingState();
 
         try {
+
+            const advancedBtn = document.getElementById('btn-advanced-analytics');
+                if (advancedBtn) {
+                    // Show/hide based on tier
+                    advancedBtn.style.display = this.hasAnalyticsAccess() ? 'flex' : 'none';
+                    advancedBtn.onclick = () => window.advancedAnalyticsModal?.show();
+                }
+
             // Load cards into dropdown
             await this.loadCardsDropdown();
 
@@ -101,6 +109,54 @@ const analyticsModule = {
             console.error('Error initializing analytics:', error);
             this.showErrorState();
         }
+    },
+
+    /**
+     * Add Advanced Analytics button to section header
+     */
+    addAdvancedAnalyticsButton() {
+        const sectionHeader = document.querySelector('#analytics-section .section-header');
+        if (!sectionHeader || document.getElementById('btn-advanced-analytics')) return;
+
+        // Create wrapper for title + button if not exists
+        let headerTop = sectionHeader.querySelector('.header-top-row');
+        if (!headerTop) {
+            headerTop = document.createElement('div');
+            headerTop.className = 'header-top-row';
+            headerTop.style.cssText = 'display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.5rem; gap: 1rem;';
+            
+            // Move h2 into the wrapper
+            const h2 = sectionHeader.querySelector('h2');
+            
+            if (h2) {
+                h2.style.margin = '0';
+                // Insert wrapper before the first child (h2)
+                sectionHeader.insertBefore(headerTop, sectionHeader.firstChild);
+                headerTop.appendChild(h2);
+            }
+        }
+
+        // Create the button
+        const button = document.createElement('button');
+        button.id = 'btn-advanced-analytics';
+        button.className = 'btn-primary';
+        button.style.cssText = 'white-space: nowrap; flex-shrink: 0;';
+        button.innerHTML = `
+            <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+            </svg>
+            Advanced Analytics
+        `;
+        button.onclick = () => {
+            if (window.advancedAnalyticsModal) {
+                window.advancedAnalyticsModal.show();
+            } else {
+                console.error('Advanced Analytics Modal not loaded');
+                alert('Advanced Analytics feature is loading. Please try again in a moment.');
+            }
+        };
+
+        headerTop.appendChild(button);
     },
 
     /**
@@ -719,7 +775,6 @@ const analyticsModule = {
             const trendEl = statCards[avgIndex].querySelector('.stat-trend');
             
             if (valueEl) {
-                // Clear any loading state
                 valueEl.innerHTML = '';
                 const daysText = metrics.avgCompletionDays > 0 ? 
                     `${metrics.avgCompletionDays} days` : 'No data';
@@ -727,11 +782,10 @@ const analyticsModule = {
             }
             
             if (trendEl) {
-                // Clear any loading state
                 trendEl.innerHTML = '';
                 trendEl.textContent = metrics.avgCompletionDays > 0 ? 
                     'Average time to complete' : 'No completed cards yet';
-                trendEl.className = 'stat-trend'; // Reset class to remove any loading styles
+                trendEl.className = 'stat-trend';
             }
         }
 
@@ -762,7 +816,6 @@ const analyticsModule = {
         const chartPlaceholder = document.querySelector('.chart-placeholder');
         if (!chartPlaceholder) return;
 
-        // Clear any loading state first
         chartPlaceholder.classList.remove('loading');
         
         if (!chartData || chartData.length === 0) {
