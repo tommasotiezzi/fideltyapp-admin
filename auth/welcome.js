@@ -1,5 +1,4 @@
-// welcome.js - Combined authentication and checkout flow
-
+// welcome.js - Fixed authentication with proper restaurant creation before checkout
 let selectedPlan = null;
 let needsCheckout = false;
 
@@ -21,14 +20,37 @@ document.addEventListener('DOMContentLoaded', () => {
  */
 async function checkExistingSession() {
     if (typeof supabase === 'undefined') return;
-
+    
     try {
         const { data: { session } } = await supabase.auth.getSession();
         if (session) {
+            // Load restaurant data before redirecting
+            await loadRestaurantData(session.user.id);
             window.location.href = '/dashboard/index.html';
         }
     } catch (error) {
         console.error('Session check error:', error);
+    }
+}
+
+/**
+ * Load restaurant data for authenticated user
+ */
+async function loadRestaurantData(userId) {
+    try {
+        // Get restaurant by owner_id
+        const { data: restaurant, error } = await supabase
+            .from('restaurants')
+            .select('*')
+            .eq('owner_id', userId)
+            .single();
+        
+        if (restaurant) {
+            sessionStorage.setItem('restaurant', JSON.stringify(restaurant));
+            sessionStorage.setItem('userRole', 'owner');
+        }
+    } catch (error) {
+        console.error('Error loading restaurant data:', error);
     }
 }
 
@@ -111,7 +133,7 @@ function switchTab(tab) {
 }
 
 /**
- * Handle signup
+ * Handle signup - FIXED VERSION
  */
 async function handleSignup(e) {
     e.preventDefault();
@@ -139,7 +161,7 @@ async function handleSignup(e) {
         const restaurantName = restaurantInput.value.trim();
         const password = passwordInput.value;
         
-        // Step 1: Create auth user ONLY
+        // Step 1: Create auth user
         const { data: authData, error: authError } = await supabase.auth.signUp({
             email: email,
             password: password
@@ -148,33 +170,75 @@ async function handleSignup(e) {
         if (authError) throw authError;
         if (!authData.user) throw new Error('Failed to create account');
         
-        // Step 2: Call database function to create restaurant atomically
-        const { data: result, error: dbError } = await supabase.rpc(
-            'create_restaurant_with_owner',
-            {
-                p_email: email,
-                p_restaurant_name: restaurantName,
-                p_subscription_tier: selectedPlan
-            }
-        );
+        // Step 2: IMPORTANT - Create restaurant record in database BEFORE checkout
+        // This ensures the record exists when the webhook fires
+        const slug = createSlug(restaurantName);
         
-        if (dbError || !result.success) {
-            // Cleanup: delete auth user via admin API
-            // Since we can't delete from client, inform user
-            await supabase.auth.signOut();
-            throw new Error(result.error || 'Failed to create restaurant. Please contact support with this email: ' + email);
+        const restaurantData = {
+            name: restaurantName,
+            slug: slug,
+            owner_id: authData.user.id,
+            subscription_tier: selectedPlan || 'free',
+            subscription_status: selectedPlan === 'free' ? 'active' : 'pending_payment',
+            activation_fee_paid: selectedPlan === 'free',
+            notifications_sent_this_month: 0,
+            active_promotions_count: 0,
+            active_events_count: 0,
+            authorized_emails: [email],
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+        };
+        
+        // Add monthly billing date for paid plans (will be updated by webhook)
+        if (selectedPlan !== 'free') {
+            restaurantData.monthly_billing_date = new Date().getDate();
         }
         
-        // Success!
+        const { data: restaurant, error: restaurantError } = await supabase
+            .from('restaurants')
+            .insert(restaurantData)
+            .select()
+            .single();
+        
+        if (restaurantError) {
+            console.error('Restaurant creation error:', restaurantError);
+            // Try to clean up auth user
+            await supabase.auth.signOut();
+            throw new Error('Failed to create restaurant. Please contact support.');
+        }
+        
+        console.log('Restaurant created:', restaurant);
+        
+        // Step 3: Create user role entry
+        const { error: roleError } = await supabase
+            .from('user_roles')
+            .insert({
+                user_id: authData.user.id,
+                restaurant_id: restaurant.id,
+                role: 'owner',
+                created_at: new Date().toISOString()
+            });
+        
+        if (roleError) {
+            console.error('Role creation error (non-fatal):', roleError);
+            // Continue anyway - owner can still be identified by owner_id
+        }
+        
+        // Step 4: Store data in session
+        sessionStorage.setItem('restaurant', JSON.stringify(restaurant));
         sessionStorage.setItem('userRole', 'owner');
         sessionStorage.setItem('selectedPlan', selectedPlan);
         
         showSuccess('Account created successfully!');
         
+        // Step 5: Now proceed with checkout or dashboard
+        // The restaurant record now exists in the database for the webhook to update
         setTimeout(() => {
             if (needsCheckout && selectedPlan !== 'free') {
-                createStripeCheckout(selectedPlan, result.restaurant_id);
+                // Restaurant exists, safe to create checkout
+                createStripeCheckout(selectedPlan, restaurant.id, email);
             } else {
+                // Free plan, go straight to dashboard
                 window.location.href = '/dashboard/index.html';
             }
         }, 1000);
@@ -188,6 +252,7 @@ async function handleSignup(e) {
         submitBtn.disabled = false;
     }
 }
+
 /**
  * Handle login
  */
@@ -219,30 +284,40 @@ async function handleLogin(e) {
         
         if (authError) throw authError;
         
-        // Verify owner role
-        const { data: roleData, error: roleError } = await supabase
-            .from('user_roles')
-            .select('role, restaurant_id')
-            .eq('user_id', authData.user.id)
-            .eq('role', 'owner')
-            .single();
-        
-        if (roleError || !roleData) {
-            // Not an owner - immediately sign out
-            await supabase.auth.signOut();
-            throw new Error('Access denied. This dashboard is for restaurant owners only.');
-        }
-        
-        // Verify restaurant exists and get subscription status
+        // Get restaurant by owner_id (most reliable method)
         const { data: restaurant, error: restaurantError } = await supabase
             .from('restaurants')
             .select('*')
-            .eq('id', roleData.restaurant_id)
+            .eq('owner_id', authData.user.id)
             .single();
         
         if (restaurantError || !restaurant) {
-            await supabase.auth.signOut();
-            throw new Error('Restaurant configuration not found. Please contact support.');
+            // Fallback: try through user_roles
+            const { data: roleData } = await supabase
+                .from('user_roles')
+                .select('restaurant_id')
+                .eq('user_id', authData.user.id)
+                .eq('role', 'owner')
+                .single();
+            
+            if (!roleData) {
+                await supabase.auth.signOut();
+                throw new Error('Access denied. This dashboard is for restaurant owners only.');
+            }
+            
+            // Get restaurant using role data
+            const { data: restaurantByRole } = await supabase
+                .from('restaurants')
+                .select('*')
+                .eq('id', roleData.restaurant_id)
+                .single();
+            
+            if (!restaurantByRole) {
+                await supabase.auth.signOut();
+                throw new Error('Restaurant configuration not found. Please contact support.');
+            }
+            
+            restaurant = restaurantByRole;
         }
         
         // Save email preference
@@ -252,7 +327,7 @@ async function handleLogin(e) {
             localStorage.removeItem('rememberedEmail');
         }
         
-        // Store restaurant data with subscription status
+        // Store restaurant data
         sessionStorage.setItem('restaurant', JSON.stringify(restaurant));
         sessionStorage.setItem('userRole', 'owner');
         
@@ -274,40 +349,49 @@ async function handleLogin(e) {
 
 /**
  * Create Stripe checkout session
+ * Restaurant must exist in database before calling this
  */
-/**
- * Create Stripe checkout session
- */
-async function createStripeCheckout(planId, restaurantId) {
+async function createStripeCheckout(planId, restaurantId, email) {
     try {
-        showSuccess(`Creating checkout for ${planId}...`);
+        showSuccess(`Setting up ${planId} plan checkout...`);
         
-        // Call your Vercel API
+        console.log('Creating checkout for:', { planId, restaurantId, email });
+        
+        // Call your Vercel API to create Stripe checkout
         const response = await fetch('/api/create-checkout', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 planId: planId,
-                restaurantId: restaurantId
+                restaurantId: restaurantId,
+                email: email
             })
         });
         
         if (!response.ok) {
-            throw new Error('Failed to create checkout session');
+            const errorData = await response.json();
+            throw new Error(errorData.message || 'Failed to create checkout session');
         }
         
         const { url } = await response.json();
+        
+        if (!url) {
+            throw new Error('No checkout URL received');
+        }
+        
+        console.log('Redirecting to Stripe checkout...');
         
         // Redirect to Stripe Checkout
         window.location.href = url;
         
     } catch (error) {
         console.error('Checkout error:', error);
-        showError('Failed to create checkout. Redirecting to dashboard...');
+        showError('Failed to create checkout. You can upgrade later from the dashboard.');
         
+        // Still let them into the dashboard even if checkout fails
         setTimeout(() => {
             window.location.href = '/dashboard/index.html';
-        }, 2000);
+        }, 3000);
     }
 }
 
@@ -315,13 +399,14 @@ async function createStripeCheckout(planId, restaurantId) {
  * Create URL-safe slug from text
  */
 function createSlug(text) {
+    const random = Math.random().toString(36).substring(2, 10);
     return text
         .toLowerCase()
         .trim()
         .replace(/[^\w\s-]/g, '')
         .replace(/[\s_-]+/g, '-')
         .replace(/^-+|-+$/g, '')
-        .substring(0, 50);
+        .substring(0, 40) + '-' + random;
 }
 
 /**
