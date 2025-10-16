@@ -240,9 +240,7 @@ const analyticsModule = {
         const upgradeTitle = isBasic ? 
             'Analytics Available in Premium' : 
             'Unlock Powerful Analytics';
-        const upgradeButton = isBasic ? 
-            'Upgrade to Premium' : 
-            'Start Free Trial - Premium';
+        const upgradeButton = 'Upgrade to Premium';
 
         const overlay = document.createElement('div');
         overlay.className = 'analytics-blur-overlay';
@@ -252,8 +250,8 @@ const analyticsModule = {
                     <svg width="64" height="64" fill="none" stroke="url(#analytics-gradient)" viewBox="0 0 24 24">
                         <defs>
                             <linearGradient id="analytics-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                                <stop offset="0%" style="stop-color:#7c5ce6;stop-opacity:1" />
-                                <stop offset="100%" style="stop-color:#5b42d6;stop-opacity:1" />
+                                <stop offset="0%" style="stop-color:#ff6b00;stop-opacity:1" />
+                                <stop offset="100%" style="stop-color:#ff8c00;stop-opacity:1" />
                             </linearGradient>
                         </defs>
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
@@ -297,7 +295,7 @@ const analyticsModule = {
                     ${upgradeButton}
                 </button>
                 
-                <p class="upgrade-note">${isBasic ? 'Premium includes 2 months free' : 'No credit card required for trial'}</p>
+                <p class="upgrade-note">${isBasic ? 'Change will apply at next billing cycle' : 'Includes 2 months free with activation'}</p>
             </div>
         `;
 
@@ -373,7 +371,7 @@ const analyticsModule = {
             .btn-upgrade-analytics {
                 width: 100%;
                 padding: 1rem 2rem;
-                background: linear-gradient(135deg, #7c5ce6, #5b42d6);
+                background: linear-gradient(135deg, #ff6b00, #ff8c00);
                 color: white;
                 border: none;
                 border-radius: 8px;
@@ -384,12 +382,13 @@ const analyticsModule = {
                 align-items: center;
                 justify-content: center;
                 gap: 0.5rem;
-                transition: all 0.2s;
+                transition: all 0.3s ease;
+                box-shadow: 0 4px 15px rgba(255, 107, 0, 0.3);
             }
             
             .btn-upgrade-analytics:hover {
                 transform: translateY(-2px);
-                box-shadow: 0 10px 20px -5px rgba(124, 92, 230, 0.3);
+                box-shadow: 0 6px 20px rgba(255, 107, 0, 0.4);
             }
             
             .upgrade-note {
@@ -410,15 +409,112 @@ const analyticsModule = {
     },
 
     /**
-     * Handle upgrade click
+     * Handle upgrade click - Redirect to checkout or schedule plan change
      */
-    handleUpgrade() {
+    async handleUpgrade() {
         const tier = window.subscriptionManager?.getCurrentTier() || 'free';
-        const targetTier = tier === 'basic' ? 'premium' : 'premium';
-        
-        if (window.subscriptionManager) {
-            window.subscriptionManager.showUpgradeModal('analytics', targetTier);
+        const restaurant = JSON.parse(sessionStorage.getItem('restaurant') || '{}');
+
+        // Show loading state
+        const upgradeBtn = document.querySelector('.btn-upgrade-analytics');
+        if (upgradeBtn) {
+            upgradeBtn.disabled = true;
+            upgradeBtn.innerHTML = `
+                <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="animation: spin 1s linear infinite;">
+                    <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none" opacity="0.25"/>
+                    <path d="M4 12a8 8 0 018-8" stroke="currentColor" stroke-width="4" stroke-linecap="round"/>
+                </svg>
+                Processing...
+            `;
         }
+
+        try {
+            if (tier === 'free') {
+                // FREE → PREMIUM: Redirect to checkout
+                const response = await fetch('/api/create-checkout', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        planId: 'premium',
+                        restaurantId: restaurant.id,
+                        billingType: 'monthly'
+                    })
+                });
+
+                if (!response.ok) throw new Error('Failed to create checkout');
+
+                const { url } = await response.json();
+                window.location.href = url;
+
+            } else if (tier === 'basic') {
+                // BASIC → PREMIUM: Schedule plan change for next billing cycle
+                const response = await fetch('/api/update-subscription', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        restaurantId: restaurant.id,
+                        newTier: 'premium',
+                        newBillingType: restaurant.billing_type || 'monthly'
+                    })
+                });
+
+                if (!response.ok) throw new Error('Failed to schedule upgrade');
+
+                const data = await response.json();
+
+                // Show success message
+                this.showUpgradeSuccess(data.effectiveDate);
+
+            } else {
+                console.error('Unexpected tier:', tier);
+                alert('An error occurred. Please try again or contact support.');
+            }
+
+        } catch (error) {
+            console.error('Upgrade error:', error);
+            alert('Failed to process upgrade. Please try again or contact support.');
+            
+            // Reset button
+            if (upgradeBtn) {
+                upgradeBtn.disabled = false;
+                upgradeBtn.innerHTML = `
+                    <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                    </svg>
+                    Upgrade to Premium
+                `;
+            }
+        }
+    },
+
+    /**
+     * Show upgrade success message
+     */
+    showUpgradeSuccess(effectiveDate) {
+        const formattedDate = new Date(effectiveDate).toLocaleDateString('en-GB', {
+            day: 'numeric',
+            month: 'long',
+            year: 'numeric'
+        });
+
+        const modal = document.createElement('div');
+        modal.style.cssText = 'position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 10000;';
+        modal.innerHTML = `
+            <div style="background: white; border-radius: 12px; padding: 2rem; max-width: 400px; margin: 1rem; text-align: center;">
+                <div style="width: 64px; height: 64px; background: linear-gradient(135deg, #10b981, #059669); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 1.5rem;">
+                    <svg width="32" height="32" fill="none" stroke="white" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/>
+                    </svg>
+                </div>
+                <h3 style="margin: 0 0 1rem 0; color: #111827; font-size: 1.5rem;">Upgrade Scheduled!</h3>
+                <p style="margin: 0 0 1.5rem 0; color: #6b7280;">Your upgrade to Premium will take effect on <strong>${formattedDate}</strong></p>
+                <p style="margin: 0 0 1.5rem 0; color: #6b7280; font-size: 0.875rem;">You'll get access to Analytics and all Premium features at your next billing cycle.</p>
+                <button onclick="location.reload()" style="width: 100%; padding: 0.75rem; background: linear-gradient(135deg, #ff6b00, #ff8c00); color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer;">
+                    Got it!
+                </button>
+            </div>
+        `;
+        document.body.appendChild(modal);
     },
 
     /**
