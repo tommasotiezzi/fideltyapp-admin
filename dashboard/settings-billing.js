@@ -237,6 +237,13 @@ class SettingsBillingManager {
             // ALWAYS use current_period_end for next billing date
             const endTimestamp = this.stripeSubscription.current_period_end;
             
+            console.log('Stripe subscription debug:', {
+                status: this.stripeSubscription.status,
+                current_period_end: endTimestamp,
+                trial_end: this.stripeSubscription.trial_end,
+                full_subscription: this.stripeSubscription
+            });
+            
             if (endTimestamp) {
                 const endDate = new Date(endTimestamp * 1000);
                 nextBillingDate = endDate.toLocaleDateString('en-GB', { 
@@ -245,6 +252,8 @@ class SettingsBillingManager {
                     year: 'numeric'
                 });
                 daysRemaining = Math.ceil((endDate - new Date()) / (1000 * 60 * 60 * 24));
+            } else {
+                console.error('No current_period_end found in subscription!');
             }
             
             // Calculate next amount based on billing type
