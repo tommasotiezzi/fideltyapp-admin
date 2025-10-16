@@ -6,6 +6,14 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_KEY
 );
 
+// Map Stripe price IDs to plan configuration
+const PRICE_TO_PLAN = {
+  'price_1SEAhZJBeBAzL7Rp3bhblPJG': { tier: 'basic', billing: 'monthly' },
+  'price_1SIn0XJBeBAzL7Rp40cecUXX': { tier: 'basic', billing: 'metered' },
+  'price_1SEAhJJBeBAzL7RplovGzWXL': { tier: 'premium', billing: 'monthly' },
+  'price_1SImzyJBeBAzL7RphdP9FhQP': { tier: 'premium', billing: 'metered' }
+};
+
 const getRawBody = (req) => {
   return new Promise((resolve) => {
     let data = '';
@@ -97,13 +105,79 @@ module.exports = async (req, res) => {
   }
 
   // Subscription status changes
+  // UPDATED: Now handles plan changes when Stripe applies them
   if (event.type === 'customer.subscription.updated') {
     const subscription = event.data.object;
     
-    await supabase
-      .from('restaurants')
-      .update({ subscription_status: subscription.status })
-      .eq('stripe_subscription_id', subscription.id);
+    try {
+      // Get current restaurant data
+      const { data: restaurant } = await supabase
+        .from('restaurants')
+        .select('subscription_tier, billing_type')
+        .eq('stripe_subscription_id', subscription.id)
+        .single();
+
+      if (!restaurant) {
+        console.error('Restaurant not found for subscription:', subscription.id);
+        await supabase
+          .from('restaurants')
+          .update({ subscription_status: subscription.status })
+          .eq('stripe_subscription_id', subscription.id);
+        return res.json({ received: true });
+      }
+
+      // NEW: Detect if plan changed by checking Stripe's current price
+      const currentPriceId = subscription.items.data[0]?.price?.id;
+      const newPlan = PRICE_TO_PLAN[currentPriceId];
+
+      // Check if plan actually changed
+      const planChanged = newPlan && (
+        restaurant.subscription_tier !== newPlan.tier ||
+        restaurant.billing_type !== newPlan.billing
+      );
+
+      if (planChanged) {
+        console.log(`Plan changed from ${restaurant.subscription_tier}/${restaurant.billing_type} to ${newPlan.tier}/${newPlan.billing}`);
+        
+        // Get new metered item ID if switching to metered
+        const meteredItemId = newPlan.billing === 'metered' 
+          ? subscription.items.data[0].id 
+          : null;
+
+        // Update to new plan
+        await supabase
+          .from('restaurants')
+          .update({
+            subscription_status: subscription.status,
+            subscription_tier: newPlan.tier,
+            billing_type: newPlan.billing,
+            stripe_metered_item_id: meteredItemId,
+            pending_plan_change: null,  // Clear pending change
+            plan_change_effective_date: null
+          })
+          .eq('stripe_subscription_id', subscription.id);
+      } else {
+        // No plan change, just update status
+        await supabase
+          .from('restaurants')
+          .update({ subscription_status: subscription.status })
+          .eq('stripe_subscription_id', subscription.id);
+      }
+
+      // NEW: Track if subscription is set to cancel at period end
+      if (subscription.cancel_at_period_end) {
+        await supabase
+          .from('restaurants')
+          .update({
+            pending_plan_change: JSON.stringify({ tier: 'free', billing_type: 'monthly' }),
+            plan_change_effective_date: new Date(subscription.current_period_end * 1000).toISOString()
+          })
+          .eq('stripe_subscription_id', subscription.id);
+      }
+
+    } catch (error) {
+      console.error('Error handling subscription update:', error);
+    }
   }
 
   // Payment failed
@@ -124,7 +198,12 @@ module.exports = async (req, res) => {
       .from('restaurants')
       .update({ 
         subscription_status: 'cancelled',
-        subscription_tier: 'free'
+        subscription_tier: 'free',
+        billing_type: 'monthly',  // Reset to default
+        stripe_subscription_id: null,
+        stripe_metered_item_id: null,
+        pending_plan_change: null,  // Clear any pending changes
+        plan_change_effective_date: null
       })
       .eq('stripe_subscription_id', subscription.id);
   }
