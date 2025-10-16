@@ -40,122 +40,172 @@
             <p>Start now.</p>
         </div>
 
-        <div class="pricing-grid">
-            <!-- Basic Plan -->
-            <div class="pricing-card featured" data-plan="basic">
-                <div class="plan-badge">Most Popular</div>
-                <div class="plan-header">
-                    <div class="plan-name">Basic</div>
-                    <div class="plan-price">
-                        <span class="price-amount">€9.90</span>
-                        <span class="price-period">/mo</span>
-                    </div>
-                    <p class="plan-description">For single locations</p>
-                </div>
-                
-                <ul class="plan-features">
-                    <li>
-                        <svg width="18" height="18" fill="currentColor" viewBox="0 0 20 20">
-                            <path d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"/>
-                        </svg>
-                        <strong>1 loyalty card</strong>
-                    </li>
-                    <li>
-                        <svg width="18" height="18" fill="currentColor" viewBox="0 0 20 20">
-                            <path d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"/>
-                        </svg>
-                        3 promotions active
-                    </li>
-                    <li>
-                        <svg width="18" height="18" fill="currentColor" viewBox="0 0 20 20">
-                            <path d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"/>
-                        </svg>
-                        2 events active
-                    </li>
-                    <li>
-                        <svg width="18" height="18" fill="currentColor" viewBox="0 0 20 20">
-                            <path d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"/>
-                        </svg>
-                        2 notifications/month
-                    </li>
-                    <li>
-                        <svg width="18" height="18" fill="currentColor" viewBox="0 0 20 20">
-                            <path d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"/>
-                        </svg>
-                        Real-time analytics
-                    </li>
-                </ul>
-                
-                <div class="activation-note">
-                    <strong>€29.90 activation</strong>
-                    <small>Includes 2 months free</small>
-                </div>
+  <!-- Billing Type Toggle -->
+<div class="billing-toggle-container">
+    <div class="billing-toggle">
+        <button class="toggle-option active" data-billing="monthly" onclick="switchBillingType('monthly')">
+            <span class="toggle-title">Monthly</span>
+            <span class="toggle-subtitle">Fixed price, unlimited stamps</span>
+        </button>
+        <button class="toggle-option" data-billing="metered" onclick="switchBillingType('metered')">
+            <span class="toggle-title">Pay-Per-Stamp</span>
+            <span class="toggle-subtitle">No monthly fee, pay as you go</span>
+        </button>
+        <div class="toggle-indicator"></div>
+    </div>
+</div>
 
-                <button class="btn-plan" onclick="openAuthModal('signup', 'basic')">
-                    Get Started - €29.90
-                </button>
+<div class="pricing-grid">
+    <!-- Basic Plan -->
+    <div class="pricing-card" data-plan="basic">
+        <div class="plan-header">
+            <div class="plan-name">Basic</div>
+            <div class="plan-price" data-monthly>
+                <span class="price-amount">€9.90</span>
+                <span class="price-period">/mo</span>
             </div>
-
-            <!-- Premium Plan -->
-            <div class="pricing-card" data-plan="premium">
-                <div class="plan-header">
-                    <div class="plan-name">Premium</div>
-                    <div class="plan-price">
-                        <span class="price-amount">€14.90</span>
-                        <span class="price-period">/mo</span>
-                    </div>
-                    <p class="plan-description">For growth</p>
-                </div>
-                
-                <ul class="plan-features">
-                    <li>
-                        <svg width="18" height="18" fill="currentColor" viewBox="0 0 20 20">
-                            <path d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"/>
-                        </svg>
-                        <strong>3 loyalty cards</strong>
-                    </li>
-                    <li>
-                        <svg width="18" height="18" fill="currentColor" viewBox="0 0 20 20">
-                            <path d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"/>
-                        </svg>
-                        9 promotions active
-                    </li>
-                    <li>
-                        <svg width="18" height="18" fill="currentColor" viewBox="0 0 20 20">
-                            <path d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"/>
-                        </svg>
-                        6 events active
-                    </li>
-                    <li>
-                        <svg width="18" height="18" fill="currentColor" viewBox="0 0 20 20">
-                            <path d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"/>
-                        </svg>
-                        6 notifications/month
-                    </li>
-                    <li>
-                        <svg width="18" height="18" fill="currentColor" viewBox="0 0 20 20">
-                            <path d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"/>
-                        </svg>
-                        Advanced analytics
-                    </li>
-                    <li>
-                        <svg width="18" height="18" fill="currentColor" viewBox="0 0 20 20">
-                            <path d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"/>
-                        </svg>
-                        Priority support
-                    </li>
-                </ul>
-                
-                <div class="activation-note">
-                    <strong>€49.90 activation</strong>
-                    <small>Includes 2 months free</small>
-                </div>
-
-                <button class="btn-plan" onclick="openAuthModal('signup', 'premium')">
-                    Get Started - €49.90
-                </button>
+            <div class="plan-price hidden" data-metered>
+                <span class="price-amount">€0.05</span>
+                <span class="price-period">/stamp</span>
             </div>
+            <p class="plan-description" data-monthly>Unlimited stamps included</p>
+            <p class="plan-description hidden" data-metered>Pay only for what you use</p>
         </div>
+        
+        <ul class="plan-features">
+            <li>
+                <svg width="18" height="18" fill="currentColor" viewBox="0 0 20 20">
+                    <path d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"/>
+                </svg>
+                <strong>1 loyalty card</strong>
+            </li>
+            <li>
+                <svg width="18" height="18" fill="currentColor" viewBox="0 0 20 20">
+                    <path d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"/>
+                </svg>
+                3 promotions active
+            </li>
+            <li>
+                <svg width="18" height="18" fill="currentColor" viewBox="0 0 20 20">
+                    <path d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"/>
+                </svg>
+                2 events active
+            </li>
+            <li>
+                <svg width="18" height="18" fill="currentColor" viewBox="0 0 20 20">
+                    <path d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"/>
+                </svg>
+                2 notifications/month
+            </li>
+            <li data-monthly>
+                <svg width="18" height="18" fill="currentColor" viewBox="0 0 20 20">
+                    <path d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"/>
+                </svg>
+                <strong>Unlimited stamps</strong>
+            </li>
+            <li class="hidden" data-metered>
+                <svg width="18" height="18" fill="currentColor" viewBox="0 0 20 20">
+                    <path d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"/>
+                </svg>
+                <strong>€0 monthly fee</strong>
+            </li>
+            <li>
+                <svg width="18" height="18" fill="currentColor" viewBox="0 0 20 20">
+                    <path d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"/>
+                </svg>
+                Real-time analytics
+            </li>
+        </ul>
+        
+        <div class="activation-note">
+            <strong>€29.90 activation</strong>
+            <small>Includes 2 months free</small>
+        </div>
+
+        <button class="btn-plan" onclick="selectPlan('basic')">
+            Get Started - €29.90
+        </button>
+    </div>
+
+    <!-- Premium Plan -->
+    <div class="pricing-card featured" data-plan="premium">
+        <div class="plan-header">
+            <div class="plan-badge">Most Popular</div>
+
+            <div class="plan-name">Premium</div>
+            <div class="plan-price" data-monthly>
+                <span class="price-amount">€14.90</span>
+                <span class="price-period">/mo</span>
+            </div>
+            <div class="plan-price hidden" data-metered>
+                <span class="price-amount">€0.055</span>
+                <span class="price-period">/stamp</span>
+            </div>
+            <p class="plan-description" data-monthly>Unlimited stamps included</p>
+            <p class="plan-description hidden" data-metered>Pay only for what you use</p>
+        </div>
+        
+        <ul class="plan-features">
+            <li>
+                <svg width="18" height="18" fill="currentColor" viewBox="0 0 20 20">
+                    <path d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"/>
+                </svg>
+                <strong>3 loyalty cards</strong>
+            </li>
+            <li>
+                <svg width="18" height="18" fill="currentColor" viewBox="0 0 20 20">
+                    <path d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"/>
+                </svg>
+                9 promotions active
+            </li>
+            <li>
+                <svg width="18" height="18" fill="currentColor" viewBox="0 0 20 20">
+                    <path d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"/>
+                </svg>
+                6 events active
+            </li>
+            <li>
+                <svg width="18" height="18" fill="currentColor" viewBox="0 0 20 20">
+                    <path d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"/>
+                </svg>
+                6 notifications/month
+            </li>
+            <li data-monthly>
+                <svg width="18" height="18" fill="currentColor" viewBox="0 0 20 20">
+                    <path d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"/>
+                </svg>
+                <strong>Unlimited stamps</strong>
+            </li>
+            <li class="hidden" data-metered>
+                <svg width="18" height="18" fill="currentColor" viewBox="0 0 20 20">
+                    <path d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"/>
+                </svg>
+                <strong>€0 monthly fee</strong>
+            </li>
+            <li>
+                <svg width="18" height="18" fill="currentColor" viewBox="0 0 20 20">
+                    <path d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"/>
+                </svg>
+                Advanced analytics
+            </li>
+            <li>
+                <svg width="18" height="18" fill="currentColor" viewBox="0 0 20 20">
+                    <path d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"/>
+                </svg>
+                Priority support
+            </li>
+        </ul>
+        
+        <div class="activation-note">
+            <strong>€49.90 activation</strong>
+            <small>Includes 2 months free</small>
+        </div>
+
+        <button class="btn-plan" onclick="selectPlan('premium')">
+            Get Started - €49.90
+        </button>
+    </div>
+</div>
 
         <div class="free-notice">
             <p>Or <button class="link-button" onclick="openAuthModal('signup', 'free')">start free</button> - explore the dashboard and promote your offers for free</p>
