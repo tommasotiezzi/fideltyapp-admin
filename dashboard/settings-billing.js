@@ -248,12 +248,23 @@ class SettingsBillingManager {
             }
             
             // Calculate next amount based on billing type
-            if (billingType === 'monthly') {
-                nextAmount = currentPricing.fee || '0.00';
-            } else if (billingType === 'metered') {
-                // Estimate based on current billing cycle usage
-                const estimatedStamps = this.monthlyStamps * 1.1; // 10% buffer
-                nextAmount = (estimatedStamps * parseFloat(currentPricing.perStamp || 0)).toFixed(2);
+            if (isInTrial) {
+                // During trial, show what will be charged at trial end
+                if (billingType === 'monthly') {
+                    nextAmount = currentPricing.fee || '0.00';
+                } else if (billingType === 'metered') {
+                    // Show accumulated usage during trial
+                    nextAmount = (this.monthlyStamps * parseFloat(currentPricing.perStamp || 0)).toFixed(2);
+                }
+            } else {
+                // After trial, regular billing
+                if (billingType === 'monthly') {
+                    nextAmount = currentPricing.fee || '0.00';
+                } else if (billingType === 'metered') {
+                    // Estimate based on current billing cycle usage
+                    const estimatedStamps = this.monthlyStamps * 1.1; // 10% buffer
+                    nextAmount = (estimatedStamps * parseFloat(currentPricing.perStamp || 0)).toFixed(2);
+                }
             }
         }
         
@@ -307,15 +318,15 @@ class SettingsBillingManager {
                         `}
                         
                         <div class="billing-detail-card" style="background: rgba(255,255,255,0.1); padding: 1.25rem; border-radius: 8px; border: 1px solid rgba(255,255,255,0.2);">
-                            <span class="billing-label" style="display: block; font-size: 0.875rem; opacity: 0.9; margin-bottom: 0.5rem;">Next Payment</span>
+                            <span class="billing-label" style="display: block; font-size: 0.875rem; opacity: 0.9; margin-bottom: 0.5rem;">${isInTrial ? 'Trial Ends' : 'Next Payment'}</span>
                             <span class="billing-value" style="display: block; font-size: 1.5rem; font-weight: 700; margin-bottom: 0.25rem; line-height: 1.2;">${nextBillingDate}</span>
                             <span class="billing-detail" style="display: block; font-size: 0.813rem; opacity: 0.8;">${daysRemaining} days remaining</span>
                         </div>
                         
                         <div class="billing-detail-card" style="background: rgba(255,255,255,0.1); padding: 1.25rem; border-radius: 8px; border: 1px solid rgba(255,255,255,0.2);">
-                            <span class="billing-label" style="display: block; font-size: 0.875rem; opacity: 0.9; margin-bottom: 0.5rem;">Est. Next Bill</span>
+                            <span class="billing-label" style="display: block; font-size: 0.875rem; opacity: 0.9; margin-bottom: 0.5rem;">${isInTrial ? 'First Bill' : 'Est. Next Bill'}</span>
                             <span class="billing-value" style="display: block; font-size: 1.75rem; font-weight: 700; margin-bottom: 0.25rem;">€${nextAmount}</span>
-                            <span class="billing-detail" style="display: block; font-size: 0.813rem; opacity: 0.8;">${billingType === 'metered' ? 'Estimated' : 'Fixed amount'}</span>
+                            <span class="billing-detail" style="display: block; font-size: 0.813rem; opacity: 0.8;">${isInTrial ? (billingType === 'metered' ? 'Trial usage' : 'After trial') : (billingType === 'metered' ? 'Estimated' : 'Fixed amount')}</span>
                         </div>
                     </div>
                     
