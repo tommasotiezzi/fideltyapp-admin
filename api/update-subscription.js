@@ -52,6 +52,15 @@ module.exports = async (req, res) => {
     // Get current subscription from Stripe
     const subscription = await stripe.subscriptions.retrieve(restaurant.stripe_subscription_id);
 
+    // Use trial_end if in trial, otherwise use current_period_end (same logic as frontend)
+    const effectiveEndDate = subscription.current_period_end || subscription.trial_end;
+
+    if (!effectiveEndDate) {
+      return res.status(400).json({ 
+        error: 'Unable to determine subscription end date' 
+      });
+    }
+
     // Handle cancellation (downgrade to free)
     if (newTier === 'free') {
       // Cancel at period end
@@ -64,7 +73,7 @@ module.exports = async (req, res) => {
         .from('restaurants')
         .update({
           pending_plan_change: JSON.stringify({ tier: 'free', billing_type: 'monthly' }),
-          plan_change_effective_date: new Date(subscription.current_period_end * 1000).toISOString()
+          plan_change_effective_date: new Date(effectiveEndDate * 1000).toISOString()
         })
         .eq('id', restaurantId);
 
@@ -105,7 +114,7 @@ module.exports = async (req, res) => {
       .from('restaurants')
       .update({
         pending_plan_change: JSON.stringify({ tier: newTier, billing_type: newBillingType }),
-        plan_change_effective_date: new Date(subscription.current_period_end * 1000).toISOString(),
+        plan_change_effective_date: new Date(effectiveEndDate * 1000).toISOString(),
         stripe_metered_item_id: newBillingType === 'metered' ? newSubscriptionItemId : null
       })
       .eq('id', restaurantId);
@@ -114,7 +123,7 @@ module.exports = async (req, res) => {
 
     res.status(200).json({ 
       success: true,
-      effectiveDate: new Date(subscription.current_period_end * 1000).toISOString(),
+      effectiveDate: new Date(effectiveEndDate * 1000).toISOString(),
       newPlan: { tier: newTier, billingType: newBillingType }
     });
 
