@@ -39,7 +39,7 @@ class SettingsBillingManager {
                 await this.fetchStripeSubscription();
             }
             
-            // Calculate stamps given this month (for metered billing)
+            // Calculate stamps given this billing cycle (for metered billing)
             if (restaurant.billing_type === 'metered') {
                 await this.calculateMonthlyStamps();
             }
@@ -51,50 +51,51 @@ class SettingsBillingManager {
         }
     }
 
-async calculateMonthlyStamps() {
-    try {
-        // Use Stripe's billing cycle start, or fallback to start of month
-        let billingCycleStart;
-        if (this.stripeSubscription?.current_period_start) {
-            billingCycleStart = new Date(this.stripeSubscription.current_period_start * 1000);
-        } else {
-            // Fallback to start of current month if no Stripe data yet
-            billingCycleStart = new Date();
-            billingCycleStart.setDate(1);
-            billingCycleStart.setHours(0, 0, 0, 0);
-        }
-        
-        // First, get all customer_card IDs for this restaurant
-        const { data: customerCards, error: cardsError } = await supabase
-            .from('customer_cards')
-            .select('id')
-            .eq('restaurant_id', this.restaurant.id);
-        
-        if (cardsError) throw cardsError;
-        
-        if (!customerCards || customerCards.length === 0) {
+    async calculateMonthlyStamps() {
+        try {
+            // Use Stripe's billing cycle start, or fallback to start of month
+            let billingCycleStart;
+            if (this.stripeSubscription?.current_period_start) {
+                billingCycleStart = new Date(this.stripeSubscription.current_period_start * 1000);
+            } else {
+                // Fallback to start of current month if no Stripe data yet
+                billingCycleStart = new Date();
+                billingCycleStart.setDate(1);
+                billingCycleStart.setHours(0, 0, 0, 0);
+            }
+            
+            // First, get all customer_card IDs for this restaurant
+            const { data: customerCards, error: cardsError } = await supabase
+                .from('customer_cards')
+                .select('id')
+                .eq('restaurant_id', this.restaurant.id);
+            
+            if (cardsError) throw cardsError;
+            
+            if (!customerCards || customerCards.length === 0) {
+                this.monthlyStamps = 0;
+                return;
+            }
+            
+            const cardIds = customerCards.map(card => card.id);
+            
+            // Get all stamps for those cards from current billing cycle
+            const { data: stamps, error: stampsError } = await supabase
+                .from('stamps')
+                .select('stamps_given')
+                .in('customer_card_id', cardIds)
+                .gte('created_at', billingCycleStart.toISOString());
+            
+            if (stampsError) throw stampsError;
+            
+            this.monthlyStamps = stamps.reduce((sum, record) => sum + (record.stamps_given || 0), 0);
+            
+        } catch (error) {
+            console.error('Error calculating monthly stamps:', error);
             this.monthlyStamps = 0;
-            return;
         }
-        
-        const cardIds = customerCards.map(card => card.id);
-        
-        // Get all stamps for those cards from current billing cycle
-        const { data: stamps, error: stampsError } = await supabase
-            .from('stamps')
-            .select('stamps_given')
-            .in('customer_card_id', cardIds)
-            .gte('created_at', billingCycleStart.toISOString());
-        
-        if (stampsError) throw stampsError;
-        
-        this.monthlyStamps = stamps.reduce((sum, record) => sum + (record.stamps_given || 0), 0);
-        
-    } catch (error) {
-        console.error('Error calculating monthly stamps:', error);
-        this.monthlyStamps = 0;
     }
-}
+
     async fetchStripeSubscription() {
         try {
             const response = await fetch('/api/get-subscription', {
@@ -233,15 +234,15 @@ async calculateMonthlyStamps() {
             isInTrial = this.stripeSubscription.status === 'trialing';
             subscriptionStatus = this.stripeSubscription.status;
             
-            // Always use current_period_end for next billing date
+            // ALWAYS use current_period_end for next billing date
             const endTimestamp = this.stripeSubscription.current_period_end;
             
             if (endTimestamp) {
                 const endDate = new Date(endTimestamp * 1000);
                 nextBillingDate = endDate.toLocaleDateString('en-GB', { 
-                    year: 'numeric', 
+                    day: 'numeric',
                     month: 'long', 
-                    day: 'numeric' 
+                    year: 'numeric'
                 });
                 daysRemaining = Math.ceil((endDate - new Date()) / (1000 * 60 * 60 * 24));
             }
@@ -250,7 +251,7 @@ async calculateMonthlyStamps() {
             if (billingType === 'monthly') {
                 nextAmount = currentPricing.fee || '0.00';
             } else if (billingType === 'metered') {
-                // Estimate based on current month's usage
+                // Estimate based on current billing cycle usage
                 const estimatedStamps = this.monthlyStamps * 1.1; // 10% buffer
                 nextAmount = (estimatedStamps * parseFloat(currentPricing.perStamp || 0)).toFixed(2);
             }
@@ -299,7 +300,7 @@ async calculateMonthlyStamps() {
                             </div>
                             
                             <div class="billing-detail-card" style="background: rgba(255,255,255,0.1); padding: 1.25rem; border-radius: 8px; border: 1px solid rgba(255,255,255,0.2);">
-                                <span class="billing-label" style="display: block; font-size: 0.875rem; opacity: 0.9; margin-bottom: 0.5rem;">Stamps This Month</span>
+                                <span class="billing-label" style="display: block; font-size: 0.875rem; opacity: 0.9; margin-bottom: 0.5rem;">Stamps This Cycle</span>
                                 <span class="billing-value" style="display: block; font-size: 1.75rem; font-weight: 700; margin-bottom: 0.25rem;">${this.monthlyStamps.toLocaleString()}</span>
                                 <span class="billing-detail" style="display: block; font-size: 0.813rem; opacity: 0.8;">€${(this.monthlyStamps * parseFloat(currentPricing.perStamp || 0)).toFixed(2)} cost</span>
                             </div>
@@ -307,7 +308,7 @@ async calculateMonthlyStamps() {
                         
                         <div class="billing-detail-card" style="background: rgba(255,255,255,0.1); padding: 1.25rem; border-radius: 8px; border: 1px solid rgba(255,255,255,0.2);">
                             <span class="billing-label" style="display: block; font-size: 0.875rem; opacity: 0.9; margin-bottom: 0.5rem;">Next Payment</span>
-                            <span class="billing-value" style="display: block; font-size: 1.75rem; font-weight: 700; margin-bottom: 0.25rem;">${nextBillingDate}</span>
+                            <span class="billing-value" style="display: block; font-size: 1.5rem; font-weight: 700; margin-bottom: 0.25rem; line-height: 1.2;">${nextBillingDate}</span>
                             <span class="billing-detail" style="display: block; font-size: 0.813rem; opacity: 0.8;">${daysRemaining} days remaining</span>
                         </div>
                         
@@ -388,12 +389,19 @@ async calculateMonthlyStamps() {
     }
 
     openPlanModal() {
-        // Create and show modal
+        // Create backdrop
         const modal = document.createElement('div');
-        modal.className = 'modal';
         modal.id = 'plan-change-modal';
         modal.style.cssText = 'position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 10000; padding: 1rem;';
         modal.innerHTML = this.generatePlanModalHtml();
+        
+        // Close on backdrop click
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                this.closePlanModal();
+            }
+        });
+        
         document.body.appendChild(modal);
         document.body.style.overflow = 'hidden';
     }
@@ -406,80 +414,78 @@ async calculateMonthlyStamps() {
             <div class="modal-content" style="max-width: 900px; max-height: 90vh; overflow-y: auto; background: white; border-radius: 12px; position: relative;">
                 <div class="modal-header" style="padding: 1.5rem; border-bottom: 1px solid #e5e7eb; display: flex; justify-content: space-between; align-items: center;">
                     <h2 style="margin: 0; font-size: 1.5rem; color: #111827;">Change Your Plan</h2>
-                    <button class="modal-close" onclick="settingsBilling.closePlanModal()" style="background: none; border: none; font-size: 1.5rem; cursor: pointer; color: #6b7280; padding: 0.5rem; line-height: 1;">×</button>
+                    <button class="modal-close" onclick="settingsBilling.closePlanModal()" style="background: none; border: none; font-size: 2rem; cursor: pointer; color: #6b7280; padding: 0.5rem; line-height: 1; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center;">×</button>
                 </div>
                 
                 <div style="padding: 2rem;">
-                    <p style="color: #6b7280; margin-bottom: 2rem;">Changes will take effect at your next billing cycle (${this.stripeSubscription ? new Date(this.stripeSubscription.current_period_end * 1000).toLocaleDateString('en-GB') : 'N/A'})</p>
+                    <p style="color: #6b7280; margin-bottom: 2rem;">Changes will take effect at your next billing cycle${this.stripeSubscription ? ` (${new Date(this.stripeSubscription.current_period_end * 1000).toLocaleDateString('en-GB')})` : ''}</p>
                     
-                    <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 2rem;">
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.5rem;">
                         <!-- Basic Monthly -->
-                        <div class="plan-option ${currentTier === 'basic' && currentBilling === 'monthly' ? 'current' : ''}" style="border: 2px solid ${currentTier === 'basic' && currentBilling === 'monthly' ? '#3b82f6' : '#e5e7eb'}; border-radius: 12px; padding: 1.5rem; position: relative;">
-                            ${currentTier === 'basic' && currentBilling === 'monthly' ? '<div style="position: absolute; top: -12px; left: 50%; transform: translateX(-50%); background: #3b82f6; color: white; padding: 0.25rem 0.75rem; border-radius: 12px; font-size: 0.75rem; font-weight: 600;">CURRENT PLAN</div>' : ''}
-                            <h3 style="margin: 0 0 0.5rem 0;">Basic - Monthly</h3>
+                        <div style="border: 2px solid ${currentTier === 'basic' && currentBilling === 'monthly' ? '#3b82f6' : '#e5e7eb'}; border-radius: 12px; padding: 1.5rem; position: relative;">
+                            ${currentTier === 'basic' && currentBilling === 'monthly' ? '<div style="position: absolute; top: -12px; left: 50%; transform: translateX(-50%); background: #3b82f6; color: white; padding: 0.25rem 0.75rem; border-radius: 12px; font-size: 0.75rem; font-weight: 600;">CURRENT</div>' : ''}
+                            <h3 style="margin: 0 0 0.5rem 0; font-size: 1.125rem;">Basic - Monthly</h3>
                             <div style="font-size: 2rem; font-weight: 700; color: #3b82f6; margin-bottom: 0.5rem;">€9.90<span style="font-size: 1rem; font-weight: 400; color: #6b7280;">/mo</span></div>
-                            <p style="color: #6b7280; font-size: 0.875rem; margin-bottom: 1rem;">Unlimited stamps included</p>
-                            <ul style="list-style: none; padding: 0; margin: 0 0 1.5rem 0;">
-                                <li style="padding: 0.5rem 0; color: #374151;">✓ 1 loyalty card</li>
-                                <li style="padding: 0.5rem 0; color: #374151;">✓ 3 promotions</li>
-                                <li style="padding: 0.5rem 0; color: #374151;">✓ 2 events</li>
-                                <li style="padding: 0.5rem 0; color: #374151;">✓ 2 notifications/month</li>
+                            <p style="color: #6b7280; font-size: 0.875rem; margin-bottom: 1rem;">Unlimited stamps</p>
+                            <ul style="list-style: none; padding: 0; margin: 0 0 1.5rem 0; font-size: 0.875rem;">
+                                <li style="padding: 0.4rem 0; color: #374151;">✓ 1 loyalty card</li>
+                                <li style="padding: 0.4rem 0; color: #374151;">✓ 3 promotions</li>
+                                <li style="padding: 0.4rem 0; color: #374151;">✓ 2 events</li>
+                                <li style="padding: 0.4rem 0; color: #374151;">✓ 2 notifications/month</li>
                             </ul>
                             ${currentTier === 'basic' && currentBilling === 'monthly' ? '' : `
-                                <button onclick="settingsBilling.selectNewPlan('basic', 'monthly')" style="width: 100%; padding: 0.75rem; background: #3b82f6; color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer;">Select This Plan</button>
+                                <button onclick="settingsBilling.selectNewPlan('basic', 'monthly')" style="width: 100%; padding: 0.75rem; background: #3b82f6; color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; font-size: 0.875rem;">Select Plan</button>
                             `}
                         </div>
                         
                         <!-- Basic Metered -->
-                        <div class="plan-option ${currentTier === 'basic' && currentBilling === 'metered' ? 'current' : ''}" style="border: 2px solid ${currentTier === 'basic' && currentBilling === 'metered' ? '#3b82f6' : '#e5e7eb'}; border-radius: 12px; padding: 1.5rem; position: relative;">
-                            ${currentTier === 'basic' && currentBilling === 'metered' ? '<div style="position: absolute; top: -12px; left: 50%; transform: translateX(-50%); background: #3b82f6; color: white; padding: 0.25rem 0.75rem; border-radius: 12px; font-size: 0.75rem; font-weight: 600;">CURRENT PLAN</div>' : ''}
-                            <h3 style="margin: 0 0 0.5rem 0;">Basic - Pay-Per-Stamp</h3>
+                        <div style="border: 2px solid ${currentTier === 'basic' && currentBilling === 'metered' ? '#3b82f6' : '#e5e7eb'}; border-radius: 12px; padding: 1.5rem; position: relative;">
+                            ${currentTier === 'basic' && currentBilling === 'metered' ? '<div style="position: absolute; top: -12px; left: 50%; transform: translateX(-50%); background: #3b82f6; color: white; padding: 0.25rem 0.75rem; border-radius: 12px; font-size: 0.75rem; font-weight: 600;">CURRENT</div>' : ''}
+                            <h3 style="margin: 0 0 0.5rem 0; font-size: 1.125rem;">Basic - Pay-Per-Stamp</h3>
                             <div style="font-size: 2rem; font-weight: 700; color: #3b82f6; margin-bottom: 0.5rem;">€0.05<span style="font-size: 1rem; font-weight: 400; color: #6b7280;">/stamp</span></div>
-                            <p style="color: #6b7280; font-size: 0.875rem; margin-bottom: 1rem;">No monthly fee, pay as you go</p>
-                            <ul style="list-style: none; padding: 0; margin: 0 0 1.5rem 0;">
-                                <li style="padding: 0.5rem 0; color: #374151;">✓ 1 loyalty card</li>
-                                <li style="padding: 0.5rem 0; color: #374151;">✓ 3 promotions</li>
-                                <li style="padding: 0.5rem 0; color: #374151;">✓ 2 events</li>
-                                <li style="padding: 0.5rem 0; color: #374151;">✓ 2 notifications/month</li>
+                            <p style="color: #6b7280; font-size: 0.875rem; margin-bottom: 1rem;">Pay as you go</p>
+                            <ul style="list-style: none; padding: 0; margin: 0 0 1.5rem 0; font-size: 0.875rem;">
+                                <li style="padding: 0.4rem 0; color: #374151;">✓ 1 loyalty card</li>
+                                <li style="padding: 0.4rem 0; color: #374151;">✓ 3 promotions</li>
+                                <li style="padding: 0.4rem 0; color: #374151;">✓ 2 events</li>
+                                <li style="padding: 0.4rem 0; color: #374151;">✓ 2 notifications/month</li>
                             </ul>
                             ${currentTier === 'basic' && currentBilling === 'metered' ? '' : `
-                                <button onclick="settingsBilling.selectNewPlan('basic', 'metered')" style="width: 100%; padding: 0.75rem; background: #3b82f6; color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer;">Select This Plan</button>
+                                <button onclick="settingsBilling.selectNewPlan('basic', 'metered')" style="width: 100%; padding: 0.75rem; background: #3b82f6; color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; font-size: 0.875rem;">Select Plan</button>
                             `}
                         </div>
                         
                         <!-- Premium Monthly -->
-                        <div class="plan-option ${currentTier === 'premium' && currentBilling === 'monthly' ? 'current' : ''}" style="border: 2px solid ${currentTier === 'premium' && currentBilling === 'monthly' ? '#8b5cf6' : '#e5e7eb'}; border-radius: 12px; padding: 1.5rem; position: relative;">
-                            ${currentTier === 'premium' && currentBilling === 'monthly' ? '<div style="position: absolute; top: -12px; left: 50%; transform: translateX(-50%); background: #8b5cf6; color: white; padding: 0.25rem 0.75rem; border-radius: 12px; font-size: 0.75rem; font-weight: 600;">CURRENT PLAN</div>' : ''}
-                            <h3 style="margin: 0 0 0.5rem 0;">Premium - Monthly</h3>
+                        <div style="border: 2px solid ${currentTier === 'premium' && currentBilling === 'monthly' ? '#8b5cf6' : '#e5e7eb'}; border-radius: 12px; padding: 1.5rem; position: relative;">
+                            ${currentTier === 'premium' && currentBilling === 'monthly' ? '<div style="position: absolute; top: -12px; left: 50%; transform: translateX(-50%); background: #8b5cf6; color: white; padding: 0.25rem 0.75rem; border-radius: 12px; font-size: 0.75rem; font-weight: 600;">CURRENT</div>' : ''}
+                            <h3 style="margin: 0 0 0.5rem 0; font-size: 1.125rem;">Premium - Monthly</h3>
                             <div style="font-size: 2rem; font-weight: 700; color: #8b5cf6; margin-bottom: 0.5rem;">€14.90<span style="font-size: 1rem; font-weight: 400; color: #6b7280;">/mo</span></div>
-                            <p style="color: #6b7280; font-size: 0.875rem; margin-bottom: 1rem;">Unlimited stamps included</p>
-                            <ul style="list-style: none; padding: 0; margin: 0 0 1.5rem 0;">
-                                <li style="padding: 0.5rem 0; color: #374151;">✓ 3 loyalty cards</li>
-                                <li style="padding: 0.5rem 0; color: #374151;">✓ 9 promotions</li>
-                                <li style="padding: 0.5rem 0; color: #374151;">✓ 6 events</li>
-                                <li style="padding: 0.5rem 0; color: #374151;">✓ 6 notifications/month</li>
-                                <li style="padding: 0.5rem 0; color: #374151;">✓ Priority support</li>
+                            <p style="color: #6b7280; font-size: 0.875rem; margin-bottom: 1rem;">Unlimited stamps</p>
+                            <ul style="list-style: none; padding: 0; margin: 0 0 1.5rem 0; font-size: 0.875rem;">
+                                <li style="padding: 0.4rem 0; color: #374151;">✓ 3 loyalty cards</li>
+                                <li style="padding: 0.4rem 0; color: #374151;">✓ 9 promotions</li>
+                                <li style="padding: 0.4rem 0; color: #374151;">✓ 6 events</li>
+                                <li style="padding: 0.4rem 0; color: #374151;">✓ 6 notifications/month</li>
                             </ul>
                             ${currentTier === 'premium' && currentBilling === 'monthly' ? '' : `
-                                <button onclick="settingsBilling.selectNewPlan('premium', 'monthly')" style="width: 100%; padding: 0.75rem; background: #8b5cf6; color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer;">Select This Plan</button>
+                                <button onclick="settingsBilling.selectNewPlan('premium', 'monthly')" style="width: 100%; padding: 0.75rem; background: #8b5cf6; color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; font-size: 0.875rem;">Select Plan</button>
                             `}
                         </div>
                         
                         <!-- Premium Metered -->
-                        <div class="plan-option ${currentTier === 'premium' && currentBilling === 'metered' ? 'current' : ''}" style="border: 2px solid ${currentTier === 'premium' && currentBilling === 'metered' ? '#8b5cf6' : '#e5e7eb'}; border-radius: 12px; padding: 1.5rem; position: relative;">
-                            ${currentTier === 'premium' && currentBilling === 'metered' ? '<div style="position: absolute; top: -12px; left: 50%; transform: translateX(-50%); background: #8b5cf6; color: white; padding: 0.25rem 0.75rem; border-radius: 12px; font-size: 0.75rem; font-weight: 600;">CURRENT PLAN</div>' : ''}
-                            <h3 style="margin: 0 0 0.5rem 0;">Premium - Pay-Per-Stamp</h3>
+                        <div style="border: 2px solid ${currentTier === 'premium' && currentBilling === 'metered' ? '#8b5cf6' : '#e5e7eb'}; border-radius: 12px; padding: 1.5rem; position: relative;">
+                            ${currentTier === 'premium' && currentBilling === 'metered' ? '<div style="position: absolute; top: -12px; left: 50%; transform: translateX(-50%); background: #8b5cf6; color: white; padding: 0.25rem 0.75rem; border-radius: 12px; font-size: 0.75rem; font-weight: 600;">CURRENT</div>' : ''}
+                            <h3 style="margin: 0 0 0.5rem 0; font-size: 1.125rem;">Premium - Pay-Per-Stamp</h3>
                             <div style="font-size: 2rem; font-weight: 700; color: #8b5cf6; margin-bottom: 0.5rem;">€0.055<span style="font-size: 1rem; font-weight: 400; color: #6b7280;">/stamp</span></div>
-                            <p style="color: #6b7280; font-size: 0.875rem; margin-bottom: 1rem;">No monthly fee, pay as you go</p>
-                            <ul style="list-style: none; padding: 0; margin: 0 0 1.5rem 0;">
-                                <li style="padding: 0.5rem 0; color: #374151;">✓ 3 loyalty cards</li>
-                                <li style="padding: 0.5rem 0; color: #374151;">✓ 9 promotions</li>
-                                <li style="padding: 0.5rem 0; color: #374151;">✓ 6 events</li>
-                                <li style="padding: 0.5rem 0; color: #374151;">✓ 6 notifications/month</li>
-                                <li style="padding: 0.5rem 0; color: #374151;">✓ Priority support</li>
+                            <p style="color: #6b7280; font-size: 0.875rem; margin-bottom: 1rem;">Pay as you go</p>
+                            <ul style="list-style: none; padding: 0; margin: 0 0 1.5rem 0; font-size: 0.875rem;">
+                                <li style="padding: 0.4rem 0; color: #374151;">✓ 3 loyalty cards</li>
+                                <li style="padding: 0.4rem 0; color: #374151;">✓ 9 promotions</li>
+                                <li style="padding: 0.4rem 0; color: #374151;">✓ 6 events</li>
+                                <li style="padding: 0.4rem 0; color: #374151;">✓ 6 notifications/month</li>
                             </ul>
                             ${currentTier === 'premium' && currentBilling === 'metered' ? '' : `
-                                <button onclick="settingsBilling.selectNewPlan('premium', 'metered')" style="width: 100%; padding: 0.75rem; background: #8b5cf6; color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer;">Select This Plan</button>
+                                <button onclick="settingsBilling.selectNewPlan('premium', 'metered')" style="width: 100%; padding: 0.75rem; background: #8b5cf6; color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; font-size: 0.875rem;">Select Plan</button>
                             `}
                         </div>
                     </div>
@@ -497,7 +503,6 @@ async calculateMonthlyStamps() {
     }
 
     async selectNewPlan(tier, billingType) {
-        // Create custom confirmation modal
         const confirmModal = document.createElement('div');
         confirmModal.style.cssText = 'position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 10001;';
         confirmModal.innerHTML = `
@@ -527,13 +532,12 @@ async calculateMonthlyStamps() {
                     })
                 });
 
-                if (!response.ok) {
-                    throw new Error('Failed to update subscription');
-                }
+                if (!response.ok) throw new Error('Failed to update subscription');
 
                 this.showCustomAlert('Plan change scheduled successfully! Changes will apply at your next billing cycle.', 'success');
                 this.closePlanModal();
-                location.reload();
+                
+                setTimeout(() => location.reload(), 2000);
 
             } catch (error) {
                 console.error('Error updating plan:', error);
@@ -543,7 +547,6 @@ async calculateMonthlyStamps() {
     }
 
     async confirmCancellation() {
-        // Create custom confirmation modal
         const confirmModal = document.createElement('div');
         confirmModal.style.cssText = 'position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 10001;';
         confirmModal.innerHTML = `
@@ -573,12 +576,11 @@ async calculateMonthlyStamps() {
                     })
                 });
 
-                if (!response.ok) {
-                    throw new Error('Failed to cancel subscription');
-                }
+                if (!response.ok) throw new Error('Failed to cancel subscription');
 
                 this.showCustomAlert('Subscription cancelled. You will retain access until the end of your current billing period.', 'success');
-                location.reload();
+                
+                setTimeout(() => location.reload(), 2000);
 
             } catch (error) {
                 console.error('Error cancelling subscription:', error);
@@ -588,7 +590,6 @@ async calculateMonthlyStamps() {
     }
 
     async cancelPendingChange() {
-        // Create custom confirmation modal
         const confirmModal = document.createElement('div');
         confirmModal.style.cssText = 'position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 10001;';
         confirmModal.innerHTML = `
@@ -615,12 +616,11 @@ async calculateMonthlyStamps() {
                     })
                 });
 
-                if (!response.ok) {
-                    throw new Error('Failed to cancel pending change');
-                }
+                if (!response.ok) throw new Error('Failed to cancel pending change');
 
                 this.showCustomAlert('Scheduled plan change cancelled.', 'success');
-                location.reload();
+                
+                setTimeout(() => location.reload(), 2000);
 
             } catch (error) {
                 console.error('Error cancelling pending change:', error);
@@ -652,7 +652,7 @@ async calculateMonthlyStamps() {
     async openBillingPortal() {
         try {
             if (!this.restaurant?.stripe_customer_id) {
-                alert('No payment method on file. Please contact support.');
+                this.showCustomAlert('No payment method on file. Please contact support.', 'error');
                 return;
             }
 
@@ -670,15 +670,14 @@ async calculateMonthlyStamps() {
             if (response.ok && data.url) {
                 window.location.href = data.url;
             } else {
-                alert(`Unable to open billing portal: ${data.error || 'Unknown error'}`);
+                this.showCustomAlert(`Unable to open billing portal: ${data.error || 'Unknown error'}`, 'error');
             }
         } catch (error) {
             console.error('Error opening billing portal:', error);
-            alert('Error opening billing portal: ' + error.message);
+            this.showCustomAlert('Error opening billing portal: ' + error.message, 'error');
         }
     }
 
-    // Keep all existing methods for authorized emails, restaurant info, etc.
     async loadAuthorizedEmails() {
         try {
             const { data } = await supabase
@@ -730,7 +729,7 @@ async calculateMonthlyStamps() {
         const email = emailInput?.value.trim();
         
         if (!email || !this.validateEmail(email)) {
-            alert('Please enter a valid email address');
+            this.showCustomAlert('Please enter a valid email address', 'error');
             return;
         }
         
@@ -744,7 +743,7 @@ async calculateMonthlyStamps() {
             const emails = current?.authorized_emails || [];
             
             if (emails.includes(email)) {
-                alert('This email is already authorized');
+                this.showCustomAlert('This email is already authorized', 'error');
                 return;
             }
             
@@ -760,11 +759,11 @@ async calculateMonthlyStamps() {
             this.addEmailToUI(email);
             emailInput.value = '';
             
-            alert(`${email} is now authorized to validate stamps.`);
+            this.showCustomAlert(`${email} is now authorized to validate stamps.`, 'success');
             
         } catch (error) {
             console.error('Error adding authorized email:', error);
-            alert('Error authorizing email');
+            this.showCustomAlert('Error authorizing email', 'error');
         }
     }
 
@@ -791,7 +790,7 @@ async calculateMonthlyStamps() {
             
         } catch (error) {
             console.error('Error removing email:', error);
-            alert('Error removing authorization');
+            this.showCustomAlert('Error removing authorization', 'error');
         }
     }
 
@@ -905,11 +904,11 @@ async calculateMonthlyStamps() {
             this.restaurant.vat_number = vatInput.value;
             sessionStorage.setItem('restaurant', JSON.stringify(this.restaurant));
             
-            alert('Restaurant information updated successfully');
+            this.showCustomAlert('Restaurant information updated successfully', 'success');
             
         } catch (error) {
             console.error('Error updating restaurant:', error);
-            alert('Error updating restaurant information');
+            this.showCustomAlert('Error updating restaurant information', 'error');
         }
     }
 
