@@ -44,7 +44,15 @@ module.exports = async (req, res) => {
       return res.status(400).json({ error: 'No metered billing configured' });
     }
 
-    // Report usage to Stripe
+    // Debug logging
+    console.log('About to report usage:', {
+      itemId: restaurant.stripe_metered_item_id,
+      quantity,
+      stripeExists: !!stripe,
+      subscriptionItemsExists: !!stripe.subscriptionItems
+    });
+
+    // Report usage to Stripe - use correct syntax
     const usageRecord = await stripe.subscriptionItems.createUsageRecord(
       restaurant.stripe_metered_item_id,
       {
@@ -53,6 +61,8 @@ module.exports = async (req, res) => {
         action: 'increment'
       }
     );
+
+    console.log('Usage record created:', usageRecord.id);
 
     res.status(200).json({ 
       success: true,
@@ -64,6 +74,7 @@ module.exports = async (req, res) => {
 
   } catch (error) {
     console.error('Report usage error:', error);
-    res.status(500).json({ error: error.message });
+    console.error('Error stack:', error.stack);
+    res.status(500).json({ error: error.message, stack: error.stack });
   }
 };
