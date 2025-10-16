@@ -61,7 +61,6 @@ module.exports = async (req, res) => {
           event_name: 'stamps_used',
           'payload[stripe_customer_id]': restaurant.stripe_customer_id,
           'payload[value]': quantity.toString(),
-          timestamp: Math.floor(Date.now() / 1000).toString()
         })
       }
     );
