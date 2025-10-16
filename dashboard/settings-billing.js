@@ -378,12 +378,16 @@ class SettingsBillingManager {
                         `}
                     </div>
                 ` : `
-                    <div class="free-plan-cta" style="margin-top: 2rem; text-align: center; padding: 2rem; background: rgba(255,255,255,0.1); border-radius: 8px;">
-                        <h3 style="color: ${colors.text}; margin-bottom: 1rem;">Upgrade to unlock more features</h3>
-                        <button class="btn-upgrade" style="background: rgba(255,255,255,0.95); color: ${colors.bg}; padding: 0.75rem 2rem; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; font-size: 1rem;" onclick="settingsBilling.openPlanModal()">
-                            View Plans
-                        </button>
-                    </div>
+
+                <div class="free-plan-cta" style="margin-top: 2rem; text-align: center; padding: 2rem; background: linear-gradient(135deg, rgba(255,107,0,0.1), rgba(255,140,0,0.15)); border-radius: 12px; border: 1px solid rgba(255,107,0,0.2);"> 
+                  <h3 style="color: ${colors.text}; margin-bottom: 1rem; font-size: 1.25rem;">Upgrade to unlock more features</h3> 
+                  <button class="btn-upgrade" style="background: linear-gradient(135deg, #ff6b00, #ff8c00); color: white; padding: 0.875rem 2.5rem; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; font-size: 1rem; box-shadow: 0 4px 15px rgba(255,107,0,0.3); transition: all 0.3s ease;" 
+                    onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 6px 20px rgba(255,107,0,0.4)'" 
+                    onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 15px rgba(255,107,0,0.3)'"
+                    onclick="settingsBilling.openPlanModal()"> 
+                    View Plans 
+                  </button> 
+                </div>
                 `}
             </div>
         `;
