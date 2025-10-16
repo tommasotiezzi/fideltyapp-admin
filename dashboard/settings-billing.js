@@ -51,28 +51,50 @@ class SettingsBillingManager {
         }
     }
 
-    async calculateMonthlyStamps() {
-        try {
-            const startOfMonth = new Date();
-            startOfMonth.setDate(1);
-            startOfMonth.setHours(0, 0, 0, 0);
-            
-            // Join through customer_cards to get restaurant_id
-            const { data, error } = await supabase
-                .from('stamps')
-                .select('stamps_given, customer_cards!inner(restaurant_id)')
-                .eq('customer_cards.restaurant_id', this.restaurant.id)
-                .gte('created_at', startOfMonth.toISOString());
-            
-            if (error) throw error;
-            
-            this.monthlyStamps = data.reduce((sum, record) => sum + (record.stamps_given || 0), 0);
-        } catch (error) {
-            console.error('Error calculating monthly stamps:', error);
-            this.monthlyStamps = 0;
+async calculateMonthlyStamps() {
+    try {
+        // Use Stripe's billing cycle start, or fallback to start of month
+        let billingCycleStart;
+        if (this.stripeSubscription?.current_period_start) {
+            billingCycleStart = new Date(this.stripeSubscription.current_period_start * 1000);
+        } else {
+            // Fallback to start of current month if no Stripe data yet
+            billingCycleStart = new Date();
+            billingCycleStart.setDate(1);
+            billingCycleStart.setHours(0, 0, 0, 0);
         }
+        
+        // First, get all customer_card IDs for this restaurant
+        const { data: customerCards, error: cardsError } = await supabase
+            .from('customer_cards')
+            .select('id')
+            .eq('restaurant_id', this.restaurant.id);
+        
+        if (cardsError) throw cardsError;
+        
+        if (!customerCards || customerCards.length === 0) {
+            this.monthlyStamps = 0;
+            return;
+        }
+        
+        const cardIds = customerCards.map(card => card.id);
+        
+        // Get all stamps for those cards from current billing cycle
+        const { data: stamps, error: stampsError } = await supabase
+            .from('stamps')
+            .select('stamps_given')
+            .in('customer_card_id', cardIds)
+            .gte('created_at', billingCycleStart.toISOString());
+        
+        if (stampsError) throw stampsError;
+        
+        this.monthlyStamps = stamps.reduce((sum, record) => sum + (record.stamps_given || 0), 0);
+        
+    } catch (error) {
+        console.error('Error calculating monthly stamps:', error);
+        this.monthlyStamps = 0;
     }
-
+}
     async fetchStripeSubscription() {
         try {
             const response = await fetch('/api/get-subscription', {
