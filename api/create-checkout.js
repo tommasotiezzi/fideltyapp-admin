@@ -9,20 +9,31 @@ module.exports = async (req, res) => {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
   try {
-    const { planId, restaurantId } = req.body;
+    const { planId, restaurantId, billingType } = req.body;
 
     const plans = {
-      basic: {
+      'basic-monthly': {
         activation: 'price_1SEAd8JBeBAzL7Rp3mcoV0B7',
         recurring: 'price_1SEAhZJBeBAzL7Rp3bhblPJG'
       },
-      premium: {
+      'basic-metered': {
+        activation: 'price_1SEAd8JBeBAzL7Rp3mcoV0B7',
+        metered: 'price_1SIn0XJBeBAzL7Rp40cecUXX'
+      },
+      'premium-monthly': {
         activation: 'price_1SEAdXJBeBAzL7Rpgd1Np2jF',
         recurring: 'price_1SEAhJJBeBAzL7RplovGzWXL'
+      },
+      'premium-metered': {
+        activation: 'price_1SEAdXJBeBAzL7Rpgd1Np2jF',
+        metered: 'price_1SImzyJBeBAzL7RphdP9FhQP'
       }
     };
 
-    const plan = plans[planId];
+    // Construct the full plan key
+    const planKey = `${planId}-${billingType}`;
+    const plan = plans[planKey];
+
     if (!plan) return res.status(400).json({ error: 'Invalid plan' });
 
     // One-time payment for activation fee
@@ -35,7 +46,13 @@ module.exports = async (req, res) => {
       },
       success_url: `${req.headers.origin}/dashboard?payment=success`,
       cancel_url: `${req.headers.origin}/dashboard?payment=cancelled`,
-      metadata: { restaurantId, planId, recurringPrice: plan.recurring }
+      metadata: { 
+        restaurantId, 
+        planId,
+        billingType,
+        recurringPrice: plan.recurring || null,
+        meteredPrice: plan.metered || null
+      }
     });
 
     res.status(200).json({ url: session.url });
