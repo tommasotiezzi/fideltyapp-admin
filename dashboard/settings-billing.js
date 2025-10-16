@@ -51,50 +51,27 @@ class SettingsBillingManager {
         }
     }
 
-async calculateMonthlyStamps() {
-    try {
-        // Use Stripe's billing cycle start, or fallback to start of month
-        let billingCycleStart;
-        if (this.stripeSubscription?.current_period_start) {
-            billingCycleStart = new Date(this.stripeSubscription.current_period_start * 1000);
-        } else {
-            // Fallback to start of current month if no Stripe data yet
-            billingCycleStart = new Date();
-            billingCycleStart.setDate(1);
-            billingCycleStart.setHours(0, 0, 0, 0);
-        }
-        
-        // First, get all customer_card IDs for this restaurant
-        const { data: customerCards, error: cardsError } = await supabase
-            .from('customer_cards')
-            .select('id')
-            .eq('restaurant_id', this.restaurant.id);
-        
-        if (cardsError) throw cardsError;
-        
-        if (!customerCards || customerCards.length === 0) {
+    async calculateMonthlyStamps() {
+        try {
+            const startOfMonth = new Date();
+            startOfMonth.setDate(1);
+            startOfMonth.setHours(0, 0, 0, 0);
+            
+            const { data, error } = await supabase
+                .from('stamps')
+                .select('stamps_given')
+                .eq('restaurant_id', this.restaurant.id)
+                .gte('created_at', startOfMonth.toISOString());
+            
+            if (error) throw error;
+            
+            this.monthlyStamps = data.reduce((sum, record) => sum + (record.stamps_given || 0), 0);
+        } catch (error) {
+            console.error('Error calculating monthly stamps:', error);
             this.monthlyStamps = 0;
-            return;
         }
-        
-        const cardIds = customerCards.map(card => card.id);
-        
-        // Get all stamps for those cards from current billing cycle
-        const { data: stamps, error: stampsError } = await supabase
-            .from('stamps')
-            .select('stamps_given')
-            .in('customer_card_id', cardIds)
-            .gte('created_at', billingCycleStart.toISOString());
-        
-        if (stampsError) throw stampsError;
-        
-        this.monthlyStamps = stamps.reduce((sum, record) => sum + (record.stamps_given || 0), 0);
-        
-    } catch (error) {
-        console.error('Error calculating monthly stamps:', error);
-        this.monthlyStamps = 0;
     }
-}
+
     async fetchStripeSubscription() {
         try {
             const response = await fetch('/api/get-subscription', {
@@ -233,9 +210,8 @@ async calculateMonthlyStamps() {
             isInTrial = this.stripeSubscription.status === 'trialing';
             subscriptionStatus = this.stripeSubscription.status;
             
-            const endTimestamp = isInTrial 
-                ? this.stripeSubscription.trial_end 
-                : this.stripeSubscription.current_period_end;
+            // Always use current_period_end for next billing date
+            const endTimestamp = this.stripeSubscription.current_period_end;
             
             if (endTimestamp) {
                 const endDate = new Date(endTimestamp * 1000);
@@ -353,15 +329,15 @@ async calculateMonthlyStamps() {
                     </div>
                     
                     <div class="plan-actions" style="margin-top: 2rem; padding-top: 2rem; border-top: 1px solid rgba(255,255,255,0.2); display: flex; gap: 1rem; flex-wrap: wrap;">
-                        <button class="btn-change-plan" onclick="settingsBilling.openPlanModal()" style="flex: 1; min-width: 200px; background: rgba(255,255,255,0.95); color: ${colors.bg}; padding: 0.75rem 1.5rem; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; transition: all 0.2s;">
+                        <button class="btn-change-plan" onclick="settingsBilling.openPlanModal()" style="flex: 1; min-width: 200px; background: rgba(255,255,255,0.95); color: ${colors.bg}; padding: 0.75rem 1.5rem; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; transition: all 0.2s; font-size: 14px;">
                             ${hasPendingChange ? 'View Scheduled Change' : 'Change Plan'}
                         </button>
                         ${!hasPendingChange ? `
-                            <button class="btn-cancel-plan" onclick="settingsBilling.confirmCancellation()" style="flex: 1; min-width: 200px; background: rgba(239, 68, 68, 0.15); color: rgba(255,255,255,0.95); padding: 0.75rem 1.5rem; border: 1px solid rgba(239, 68, 68, 0.3); border-radius: 8px; font-weight: 600; cursor: pointer; transition: all 0.2s;">
+                            <button class="btn-cancel-plan" onclick="settingsBilling.confirmCancellation()" style="flex: 1; min-width: 200px; background: rgba(239, 68, 68, 0.15); color: rgba(255,255,255,0.95); padding: 0.75rem 1.5rem; border: 1px solid rgba(239, 68, 68, 0.3); border-radius: 8px; font-weight: 600; cursor: pointer; transition: all 0.2s; font-size: 14px;">
                                 Cancel Subscription
                             </button>
                         ` : `
-                            <button class="btn-cancel-change" onclick="settingsBilling.cancelPendingChange()" style="flex: 1; min-width: 200px; background: rgba(239, 68, 68, 0.15); color: rgba(255,255,255,0.95); padding: 0.75rem 1.5rem; border: 1px solid rgba(239, 68, 68, 0.3); border-radius: 8px; font-weight: 600; cursor: pointer; transition: all 0.2s;">
+                            <button class="btn-cancel-change" onclick="settingsBilling.cancelPendingChange()" style="flex: 1; min-width: 200px; background: rgba(239, 68, 68, 0.15); color: rgba(255,255,255,0.95); padding: 0.75rem 1.5rem; border: 1px solid rgba(239, 68, 68, 0.3); border-radius: 8px; font-weight: 600; cursor: pointer; transition: all 0.2s; font-size: 14px;">
                                 Cancel Scheduled Change
                             </button>
                         `}
@@ -391,8 +367,9 @@ async calculateMonthlyStamps() {
     openPlanModal() {
         // Create and show modal
         const modal = document.createElement('div');
-        modal.className = 'modal active';
+        modal.className = 'modal';
         modal.id = 'plan-change-modal';
+        modal.style.cssText = 'position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 10000; padding: 1rem;';
         modal.innerHTML = this.generatePlanModalHtml();
         document.body.appendChild(modal);
         document.body.style.overflow = 'hidden';
@@ -403,10 +380,10 @@ async calculateMonthlyStamps() {
         const currentBilling = this.restaurant?.billing_type || 'monthly';
         
         return `
-            <div class="modal-content" style="max-width: 900px; max-height: 90vh; overflow-y: auto;">
-                <div class="modal-header" style="padding: 1.5rem; border-bottom: 1px solid #e5e7eb;">
-                    <h2 style="margin: 0;">Change Your Plan</h2>
-                    <button class="modal-close" onclick="settingsBilling.closePlanModal()" style="background: none; border: none; font-size: 1.5rem; cursor: pointer; color: #6b7280;">×</button>
+            <div class="modal-content" style="max-width: 900px; max-height: 90vh; overflow-y: auto; background: white; border-radius: 12px; position: relative;">
+                <div class="modal-header" style="padding: 1.5rem; border-bottom: 1px solid #e5e7eb; display: flex; justify-content: space-between; align-items: center;">
+                    <h2 style="margin: 0; font-size: 1.5rem; color: #111827;">Change Your Plan</h2>
+                    <button class="modal-close" onclick="settingsBilling.closePlanModal()" style="background: none; border: none; font-size: 1.5rem; cursor: pointer; color: #6b7280; padding: 0.5rem; line-height: 1;">×</button>
                 </div>
                 
                 <div style="padding: 2rem;">
@@ -497,89 +474,156 @@ async calculateMonthlyStamps() {
     }
 
     async selectNewPlan(tier, billingType) {
-        if (!confirm(`Switch to ${tier.charAt(0).toUpperCase() + tier.slice(1)} (${billingType === 'monthly' ? 'Fixed Monthly' : 'Pay-Per-Stamp'})?\n\nThis change will take effect at your next billing cycle.`)) {
-            return;
-        }
+        // Create custom confirmation modal
+        const confirmModal = document.createElement('div');
+        confirmModal.style.cssText = 'position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 10001;';
+        confirmModal.innerHTML = `
+            <div style="background: white; border-radius: 12px; padding: 2rem; max-width: 400px; margin: 1rem;">
+                <h3 style="margin: 0 0 1rem 0; color: #111827;">Confirm Plan Change</h3>
+                <p style="margin: 0 0 1.5rem 0; color: #6b7280;">Switch to ${tier.charAt(0).toUpperCase() + tier.slice(1)} (${billingType === 'monthly' ? 'Fixed Monthly' : 'Pay-Per-Stamp'})?</p>
+                <p style="margin: 0 0 1.5rem 0; color: #6b7280; font-size: 0.875rem;">This change will take effect at your next billing cycle.</p>
+                <div style="display: flex; gap: 0.75rem;">
+                    <button onclick="this.closest('div[style*=fixed]').remove()" style="flex: 1; padding: 0.625rem 1rem; background: #f3f4f6; color: #374151; border: none; border-radius: 6px; font-weight: 500; cursor: pointer;">Cancel</button>
+                    <button id="confirm-plan-change" style="flex: 1; padding: 0.625rem 1rem; background: #6366f1; color: white; border: none; border-radius: 6px; font-weight: 500; cursor: pointer;">Confirm</button>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(confirmModal);
+        
+        document.getElementById('confirm-plan-change').onclick = async () => {
+            confirmModal.remove();
+            
+            try {
+                const response = await fetch('/api/update-subscription', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        restaurantId: this.restaurant.id,
+                        newTier: tier,
+                        newBillingType: billingType
+                    })
+                });
 
-        try {
-            const response = await fetch('/api/update-subscription', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    restaurantId: this.restaurant.id,
-                    newTier: tier,
-                    newBillingType: billingType
-                })
-            });
+                if (!response.ok) {
+                    throw new Error('Failed to update subscription');
+                }
 
-            if (!response.ok) {
-                throw new Error('Failed to update subscription');
+                this.showCustomAlert('Plan change scheduled successfully! Changes will apply at your next billing cycle.', 'success');
+                this.closePlanModal();
+                location.reload();
+
+            } catch (error) {
+                console.error('Error updating plan:', error);
+                this.showCustomAlert('Failed to update plan. Please try again or contact support.', 'error');
             }
-
-            alert('Plan change scheduled successfully! Changes will apply at your next billing cycle.');
-            this.closePlanModal();
-            location.reload();
-
-        } catch (error) {
-            console.error('Error updating plan:', error);
-            alert('Failed to update plan. Please try again or contact support.');
-        }
+        };
     }
 
     async confirmCancellation() {
-        if (!confirm('Are you sure you want to cancel your subscription?\n\nYou will retain access until the end of your current billing period, after which your account will be downgraded to the Free plan.')) {
-            return;
-        }
+        // Create custom confirmation modal
+        const confirmModal = document.createElement('div');
+        confirmModal.style.cssText = 'position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 10001;';
+        confirmModal.innerHTML = `
+            <div style="background: white; border-radius: 12px; padding: 2rem; max-width: 400px; margin: 1rem;">
+                <h3 style="margin: 0 0 1rem 0; color: #111827;">Cancel Subscription?</h3>
+                <p style="margin: 0 0 1.5rem 0; color: #6b7280;">Are you sure you want to cancel your subscription?</p>
+                <p style="margin: 0 0 1.5rem 0; color: #6b7280; font-size: 0.875rem;">You will retain access until the end of your current billing period, after which your account will be downgraded to the Free plan.</p>
+                <div style="display: flex; gap: 0.75rem;">
+                    <button onclick="this.closest('div[style*=fixed]').remove()" style="flex: 1; padding: 0.625rem 1rem; background: #f3f4f6; color: #374151; border: none; border-radius: 6px; font-weight: 500; cursor: pointer;">Keep Subscription</button>
+                    <button id="confirm-cancellation" style="flex: 1; padding: 0.625rem 1rem; background: #ef4444; color: white; border: none; border-radius: 6px; font-weight: 500; cursor: pointer;">Cancel Subscription</button>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(confirmModal);
+        
+        document.getElementById('confirm-cancellation').onclick = async () => {
+            confirmModal.remove();
+            
+            try {
+                const response = await fetch('/api/update-subscription', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        restaurantId: this.restaurant.id,
+                        newTier: 'free',
+                        newBillingType: 'monthly'
+                    })
+                });
 
-        try {
-            const response = await fetch('/api/update-subscription', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    restaurantId: this.restaurant.id,
-                    newTier: 'free',
-                    newBillingType: 'monthly'
-                })
-            });
+                if (!response.ok) {
+                    throw new Error('Failed to cancel subscription');
+                }
 
-            if (!response.ok) {
-                throw new Error('Failed to cancel subscription');
+                this.showCustomAlert('Subscription cancelled. You will retain access until the end of your current billing period.', 'success');
+                location.reload();
+
+            } catch (error) {
+                console.error('Error cancelling subscription:', error);
+                this.showCustomAlert('Failed to cancel subscription. Please try again or contact support.', 'error');
             }
-
-            alert('Subscription cancelled. You will retain access until the end of your current billing period.');
-            location.reload();
-
-        } catch (error) {
-            console.error('Error cancelling subscription:', error);
-            alert('Failed to cancel subscription. Please try again or contact support.');
-        }
+        };
     }
 
     async cancelPendingChange() {
-        if (!confirm('Cancel your scheduled plan change?')) {
-            return;
-        }
+        // Create custom confirmation modal
+        const confirmModal = document.createElement('div');
+        confirmModal.style.cssText = 'position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 10001;';
+        confirmModal.innerHTML = `
+            <div style="background: white; border-radius: 12px; padding: 2rem; max-width: 400px; margin: 1rem;">
+                <h3 style="margin: 0 0 1rem 0; color: #111827;">Cancel Scheduled Change?</h3>
+                <p style="margin: 0 0 1.5rem 0; color: #6b7280;">This will cancel your scheduled plan change.</p>
+                <div style="display: flex; gap: 0.75rem;">
+                    <button onclick="this.closest('div[style*=fixed]').remove()" style="flex: 1; padding: 0.625rem 1rem; background: #f3f4f6; color: #374151; border: none; border-radius: 6px; font-weight: 500; cursor: pointer;">Keep Change</button>
+                    <button id="confirm-cancel-change" style="flex: 1; padding: 0.625rem 1rem; background: #ef4444; color: white; border: none; border-radius: 6px; font-weight: 500; cursor: pointer;">Cancel Change</button>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(confirmModal);
+        
+        document.getElementById('confirm-cancel-change').onclick = async () => {
+            confirmModal.remove();
+            
+            try {
+                const response = await fetch('/api/cancel-pending-change', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        restaurantId: this.restaurant.id
+                    })
+                });
 
-        try {
-            const response = await fetch('/api/cancel-pending-change', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    restaurantId: this.restaurant.id
-                })
-            });
+                if (!response.ok) {
+                    throw new Error('Failed to cancel pending change');
+                }
 
-            if (!response.ok) {
-                throw new Error('Failed to cancel pending change');
+                this.showCustomAlert('Scheduled plan change cancelled.', 'success');
+                location.reload();
+
+            } catch (error) {
+                console.error('Error cancelling pending change:', error);
+                this.showCustomAlert('Failed to cancel pending change. Please try again.', 'error');
             }
+        };
+    }
 
-            alert('Scheduled plan change cancelled.');
-            location.reload();
-
-        } catch (error) {
-            console.error('Error cancelling pending change:', error);
-            alert('Failed to cancel pending change. Please try again.');
-        }
+    showCustomAlert(message, type = 'success') {
+        const alert = document.createElement('div');
+        alert.style.cssText = `
+            position: fixed; 
+            top: 20px; 
+            right: 20px; 
+            padding: 1rem 1.5rem; 
+            background: ${type === 'success' ? '#10b981' : '#ef4444'}; 
+            color: white; 
+            border-radius: 8px; 
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15); 
+            z-index: 10002;
+            font-size: 14px;
+            max-width: 350px;
+        `;
+        alert.textContent = message;
+        document.body.appendChild(alert);
+        setTimeout(() => alert.remove(), 4000);
     }
 
     async openBillingPortal() {
