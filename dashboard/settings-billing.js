@@ -518,6 +518,55 @@ class SettingsBillingManager {
     }
 
     async selectNewPlan(tier, billingType) {
+        const currentTier = this.restaurant?.subscription_tier || 'free';
+        
+        // If upgrading from free, redirect to checkout
+        if (currentTier === 'free') {
+            const confirmModal = document.createElement('div');
+            confirmModal.style.cssText = 'position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 10001;';
+            confirmModal.innerHTML = `
+                <div style="background: white; border-radius: 12px; padding: 2rem; max-width: 400px; margin: 1rem;">
+                    <h3 style="margin: 0 0 1rem 0; color: #111827;">Upgrade to ${tier.charAt(0).toUpperCase() + tier.slice(1)}</h3>
+                    <p style="margin: 0 0 1.5rem 0; color: #6b7280;">You'll be redirected to checkout to pay the activation fee and set up your subscription.</p>
+                    <div style="display: flex; gap: 0.75rem;">
+                        <button onclick="this.closest('div[style*=fixed]').remove()" style="flex: 1; padding: 0.625rem 1rem; background: #f3f4f6; color: #374151; border: none; border-radius: 6px; font-weight: 500; cursor: pointer;">Cancel</button>
+                        <button id="confirm-upgrade" style="flex: 1; padding: 0.625rem 1rem; background: #6366f1; color: white; border: none; border-radius: 6px; font-weight: 500; cursor: pointer;">Continue to Checkout</button>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(confirmModal);
+            
+            document.getElementById('confirm-upgrade').onclick = async () => {
+                confirmModal.remove();
+                this.closePlanModal();
+                
+                // Redirect to checkout
+                try {
+                    const response = await fetch('/api/create-checkout', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            planId: tier,
+                            restaurantId: this.restaurant.id,
+                            billingType: billingType
+                        })
+                    });
+                    
+                    if (!response.ok) throw new Error('Failed to create checkout');
+                    
+                    const { url } = await response.json();
+                    window.location.href = url;
+                    
+                } catch (error) {
+                    console.error('Checkout error:', error);
+                    this.showCustomAlert('Failed to start checkout. Please try again.', 'error');
+                }
+            };
+            
+            return;
+        }
+        
+        // For paid → paid changes, use the existing flow
         const confirmModal = document.createElement('div');
         confirmModal.style.cssText = 'position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 10001;';
         confirmModal.innerHTML = `
