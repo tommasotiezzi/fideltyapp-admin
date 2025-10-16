@@ -31,84 +31,50 @@ module.exports = async (req, res) => {
   // Activation fee paid successfully
   if (event.type === 'checkout.session.completed' && event.data.object.mode === 'payment') {
     const session = event.data.object;
-    const { restaurantId, planId, recurringPrice } = session.metadata;
+    const { restaurantId, planId, billingType, recurringPrice, meteredPrice } = session.metadata;
 
-    console.log('Activation fee paid:', { restaurantId, planId, amount: session.amount_total });
+    console.log('Activation fee paid:', { restaurantId, planId, billingType });
 
-    if (restaurantId && recurringPrice) {
+    if (restaurantId && (recurringPrice || meteredPrice)) {
       try {
-        // Get the PaymentIntent to access the payment method
-        const paymentIntent = await stripe.paymentIntents.retrieve(session.payment_intent);
-        const paymentMethodId = paymentIntent.payment_method;
-
-        console.log('Payment method ID:', paymentMethodId);
-
         // Get or create customer
         let customerId = session.customer;
         if (!customerId) {
           const customer = await stripe.customers.create({
             email: session.customer_details?.email,
-            payment_method: paymentMethodId,
-            invoice_settings: {
-              default_payment_method: paymentMethodId,
-            },
             metadata: { restaurantId }
           });
           customerId = customer.id;
-          console.log('New customer created:', customerId);
-        } else {
-          // Attach the payment method to the existing customer
-          await stripe.paymentMethods.attach(paymentMethodId, {
-            customer: customerId,
-          });
-          
-          // Set it as the default payment method
-          await stripe.customers.update(customerId, {
-            invoice_settings: {
-              default_payment_method: paymentMethodId,
-            },
-          });
-          console.log('Payment method attached to existing customer:', customerId);
         }
 
-        // Create an invoice item for the activation fee
-        await stripe.invoiceItems.create({
-          customer: customerId,
-          amount: session.amount_total,
-          currency: session.currency || 'eur',
-          description: `${planId.charAt(0).toUpperCase() + planId.slice(1)} Plan - Activation Fee (Includes 60 days)`,
-        });
-
-        console.log('Invoice item created for activation fee');
-
-        // Create and finalize an invoice for the activation fee
-        const activationInvoice = await stripe.invoices.create({
-          customer: customerId,
-          auto_advance: false,
-          collection_method: 'charge_automatically',
-          description: 'Activation Fee - 60 Days Included',
-        });
-
-        console.log('Activation invoice created:', activationInvoice.id);
-
-        // Mark it as paid since they already paid via Checkout
-        await stripe.invoices.pay(activationInvoice.id, {
-          paid_out_of_band: true,
-        });
-
-        console.log('Activation invoice marked as paid');
-
-        // Now create subscription that starts in 60 days
+        // Create subscription that starts in 60 days
         const trialEnd = Math.floor(Date.now() / 1000) + (60 * 24 * 60 * 60);
         
+        // Build subscription items based on billing type
+        const subscriptionItems = [];
+        if (billingType === 'monthly' && recurringPrice) {
+          subscriptionItems.push({ price: recurringPrice });
+        } else if (billingType === 'metered' && meteredPrice) {
+          subscriptionItems.push({ price: meteredPrice });
+        }
+
         const subscription = await stripe.subscriptions.create({
           customer: customerId,
-          items: [{ price: recurringPrice }],
+          items: subscriptionItems,
           trial_end: trialEnd,
-          metadata: { restaurantId, planId }
+          metadata: { restaurantId, planId, billingType }
         });
 
         console.log('Subscription created:', subscription.id);
+
+        // Find metered item ID if applicable
+        let meteredItemId = null;
+        if (billingType === 'metered') {
+          const meteredItem = subscription.items.data.find(
+            item => item.price.id === meteredPrice
+          );
+          meteredItemId = meteredItem?.id;
+        }
 
         // Update database
         await supabase
@@ -116,17 +82,16 @@ module.exports = async (req, res) => {
           .update({
             subscription_status: 'active',
             subscription_tier: planId,
+            billing_type: billingType,
             stripe_customer_id: customerId,
             stripe_subscription_id: subscription.id,
+            stripe_metered_item_id: meteredItemId,
             activation_fee_paid: true
           })
           .eq('id', restaurantId);
 
-        console.log('Database updated for restaurant:', restaurantId);
-
       } catch (error) {
         console.error('Error creating subscription:', error);
-        console.error('Error details:', error.message);
       }
     }
   }
@@ -134,8 +99,6 @@ module.exports = async (req, res) => {
   // Subscription status changes
   if (event.type === 'customer.subscription.updated') {
     const subscription = event.data.object;
-    
-    console.log('Subscription updated:', subscription.id, 'Status:', subscription.status);
     
     await supabase
       .from('restaurants')
@@ -147,8 +110,6 @@ module.exports = async (req, res) => {
   if (event.type === 'invoice.payment_failed') {
     const invoice = event.data.object;
     
-    console.log('Payment failed for customer:', invoice.customer);
-    
     await supabase
       .from('restaurants')
       .update({ subscription_status: 'past_due' })
@@ -158,8 +119,6 @@ module.exports = async (req, res) => {
   // Subscription deleted/cancelled
   if (event.type === 'customer.subscription.deleted') {
     const subscription = event.data.object;
-    
-    console.log('Subscription cancelled:', subscription.id);
     
     await supabase
       .from('restaurants')
