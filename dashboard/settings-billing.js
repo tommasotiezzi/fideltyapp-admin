@@ -57,10 +57,11 @@ class SettingsBillingManager {
             startOfMonth.setDate(1);
             startOfMonth.setHours(0, 0, 0, 0);
             
+            // Join through customer_cards to get restaurant_id
             const { data, error } = await supabase
                 .from('stamps')
-                .select('stamps_given')
-                .eq('restaurant_id', this.restaurant.id)
+                .select('stamps_given, customer_cards!inner(restaurant_id)')
+                .eq('customer_cards.restaurant_id', this.restaurant.id)
                 .gte('created_at', startOfMonth.toISOString());
             
             if (error) throw error;
