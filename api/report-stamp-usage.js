@@ -1,4 +1,4 @@
-const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
+const Stripe = require('stripe');
 const { createClient } = require('@supabase/supabase-js');
 
 const supabase = createClient(
@@ -15,6 +15,11 @@ module.exports = async (req, res) => {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
   try {
+    // Initialize Stripe inside the function
+    const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
+      apiVersion: '2023-10-16'
+    });
+
     const { restaurantId, quantity } = req.body;
 
     if (!restaurantId || !quantity) {
@@ -44,15 +49,12 @@ module.exports = async (req, res) => {
       return res.status(400).json({ error: 'No metered billing configured' });
     }
 
-    // Debug logging
-    console.log('About to report usage:', {
+    console.log('Reporting usage to Stripe:', {
       itemId: restaurant.stripe_metered_item_id,
-      quantity,
-      stripeExists: !!stripe,
-      subscriptionItemsExists: !!stripe.subscriptionItems
+      quantity
     });
 
-    // Report usage to Stripe - use correct syntax
+    // Report usage to Stripe
     const usageRecord = await stripe.subscriptionItems.createUsageRecord(
       restaurant.stripe_metered_item_id,
       {
@@ -74,7 +76,6 @@ module.exports = async (req, res) => {
 
   } catch (error) {
     console.error('Report usage error:', error);
-    console.error('Error stack:', error.stack);
-    res.status(500).json({ error: error.message, stack: error.stack });
+    res.status(500).json({ error: error.message });
   }
 };
