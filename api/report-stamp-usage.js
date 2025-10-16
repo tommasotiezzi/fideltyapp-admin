@@ -61,6 +61,8 @@ module.exports = async (req, res) => {
           event_name: 'stamps_used',
           'payload[stripe_customer_id]': restaurant.stripe_customer_id,
           'payload[value]': quantity.toString(),
+          timestamp: '1734480000',  // December 18, 2025 00:00:00 UTC
+
         })
       }
     );
