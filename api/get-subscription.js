@@ -23,16 +23,9 @@ module.exports = async (req, res) => {
 
     const subscription = await stripe.subscriptions.retrieve(subscriptionId);
 
-    res.status(200).json({ 
-      subscription: {
-        id: subscription.id,
-        status: subscription.status,
-        current_period_start: subscription.current_period_start,
-        current_period_end: subscription.current_period_end,
-        trial_end: subscription.trial_end,
-        cancel_at_period_end: subscription.cancel_at_period_end
-      }
-    });
+  res.status(200).json({ 
+    subscription: subscription
+  });
   } catch (error) {
     console.error('Get subscription error:', error);
     res.status(500).json({ error: error.message });
