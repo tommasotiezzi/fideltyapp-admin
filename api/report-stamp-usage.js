@@ -23,7 +23,7 @@ module.exports = async (req, res) => {
     // Get restaurant's billing info
     const { data: restaurant, error: dbError } = await supabase
       .from('restaurants')
-      .select('stripe_metered_item_id, billing_type, stripe_customer_id')
+      .select('stripe_customer_id, billing_type')
       .eq('id', restaurantId)
       .single();
 
@@ -39,18 +39,18 @@ module.exports = async (req, res) => {
       });
     }
 
-    if (!restaurant.stripe_metered_item_id) {
-      return res.status(400).json({ error: 'No metered billing configured' });
+    if (!restaurant.stripe_customer_id) {
+      return res.status(400).json({ error: 'No Stripe customer ID found' });
     }
 
-    console.log('Reporting usage to Stripe:', {
-      itemId: restaurant.stripe_metered_item_id,
+    console.log('Reporting usage to Stripe Billing Meters:', {
+      customerId: restaurant.stripe_customer_id,
       quantity
     });
 
-    // Use Stripe HTTP API directly instead of SDK
+    // Use NEW Billing Meter Events API
     const stripeResponse = await fetch(
-      `https://api.stripe.com/v1/subscription_items/${restaurant.stripe_metered_item_id}/usage_records`,
+      'https://api.stripe.com/v1/billing/meter_events',
       {
         method: 'POST',
         headers: {
@@ -58,9 +58,10 @@ module.exports = async (req, res) => {
           'Content-Type': 'application/x-www-form-urlencoded'
         },
         body: new URLSearchParams({
-          quantity: quantity.toString(),
-          timestamp: Math.floor(Date.now() / 1000).toString(),
-          action: 'increment'
+          event_name: 'stamps_used',
+          'payload[stripe_customer_id]': restaurant.stripe_customer_id,
+          'payload[value]': quantity.toString(),
+          timestamp: Math.floor(Date.now() / 1000).toString()
         })
       }
     );
@@ -71,14 +72,14 @@ module.exports = async (req, res) => {
       return res.status(500).json({ error: 'Failed to report usage to Stripe', details: error });
     }
 
-    const usageRecord = await stripeResponse.json();
-    console.log('Usage record created:', usageRecord.id);
+    const meterEvent = await stripeResponse.json();
+    console.log('Meter event created:', meterEvent.identifier);
 
     res.status(200).json({ 
       success: true,
-      usageRecord: {
-        id: usageRecord.id,
-        quantity: usageRecord.quantity
+      meterEvent: {
+        identifier: meterEvent.identifier,
+        value: quantity
       }
     });
 
