@@ -1,4 +1,3 @@
-const Stripe = require('stripe');
 const { createClient } = require('@supabase/supabase-js');
 
 const supabase = createClient(
@@ -15,11 +14,6 @@ module.exports = async (req, res) => {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
   try {
-    // Initialize Stripe inside the function
-    const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
-      apiVersion: '2023-10-16'
-    });
-
     const { restaurantId, quantity } = req.body;
 
     if (!restaurantId || !quantity) {
@@ -54,16 +48,30 @@ module.exports = async (req, res) => {
       quantity
     });
 
-    // Report usage to Stripe
-    const usageRecord = await stripe.subscriptionItems.createUsageRecord(
-      restaurant.stripe_metered_item_id,
+    // Use Stripe HTTP API directly instead of SDK
+    const stripeResponse = await fetch(
+      `https://api.stripe.com/v1/subscription_items/${restaurant.stripe_metered_item_id}/usage_records`,
       {
-        quantity: quantity,
-        timestamp: Math.floor(Date.now() / 1000),
-        action: 'increment'
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${process.env.STRIPE_SECRET_KEY}`,
+          'Content-Type': 'application/x-www-form-urlencoded'
+        },
+        body: new URLSearchParams({
+          quantity: quantity.toString(),
+          timestamp: Math.floor(Date.now() / 1000).toString(),
+          action: 'increment'
+        })
       }
     );
 
+    if (!stripeResponse.ok) {
+      const error = await stripeResponse.json();
+      console.error('Stripe API error:', error);
+      return res.status(500).json({ error: 'Failed to report usage to Stripe', details: error });
+    }
+
+    const usageRecord = await stripeResponse.json();
     console.log('Usage record created:', usageRecord.id);
 
     res.status(200).json({ 
