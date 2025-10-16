@@ -1,9 +1,10 @@
-// settings-billing.js - Fetch subscription data from Stripe API
+// settings-billing.js - Enhanced version with plan switching
 
 class SettingsBillingManager {
     constructor() {
         this.restaurant = null;
         this.stripeSubscription = null;
+        this.monthlyStamps = 0;
         this.init();
     }
 
@@ -38,6 +39,11 @@ class SettingsBillingManager {
                 await this.fetchStripeSubscription();
             }
             
+            // Calculate stamps given this month (for metered billing)
+            if (restaurant.billing_type === 'metered') {
+                await this.calculateMonthlyStamps();
+            }
+            
             this.updateRestaurantForm(restaurant);
             
         } catch (error) {
@@ -45,9 +51,29 @@ class SettingsBillingManager {
         }
     }
 
+    async calculateMonthlyStamps() {
+        try {
+            const startOfMonth = new Date();
+            startOfMonth.setDate(1);
+            startOfMonth.setHours(0, 0, 0, 0);
+            
+            const { data, error } = await supabase
+                .from('stamps')
+                .select('stamps_given')
+                .eq('restaurant_id', this.restaurant.id)
+                .gte('created_at', startOfMonth.toISOString());
+            
+            if (error) throw error;
+            
+            this.monthlyStamps = data.reduce((sum, record) => sum + (record.stamps_given || 0), 0);
+        } catch (error) {
+            console.error('Error calculating monthly stamps:', error);
+            this.monthlyStamps = 0;
+        }
+    }
+
     async fetchStripeSubscription() {
         try {
-            // Call your backend API to get subscription from Stripe
             const response = await fetch('/api/get-subscription', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -79,11 +105,12 @@ class SettingsBillingManager {
         const billingOverview = document.querySelector('.billing-overview');
         if (!billingOverview) return;
         
-        const tier = window.subscriptionManager?.getCurrentTier() || 'free';
+        const tier = this.restaurant?.subscription_tier || 'free';
+        const billingType = this.restaurant?.billing_type || 'monthly';
         const tierConfig = window.subscriptionManager?.getTierConfig() || {};
         
         const featureUsageHtml = await this.generateFeatureUsageHtml();
-        const billingInfoHtml = this.generateBillingInfoHtml(tier, tierConfig);
+        const billingInfoHtml = this.generateBillingInfoHtml(tier, billingType, tierConfig);
         
         billingOverview.innerHTML = `
             ${featureUsageHtml}
@@ -94,7 +121,7 @@ class SettingsBillingManager {
     }
 
     async generateFeatureUsageHtml() {
-        const tier = window.subscriptionManager?.getCurrentTier() || 'free';
+        const tier = this.restaurant?.subscription_tier || 'free';
         const tierConfig = window.subscriptionManager?.getTierConfig() || {};
         
         return `
@@ -149,174 +176,419 @@ class SettingsBillingManager {
         `;
     }
 
-    generateBillingInfoHtml(tier, tierConfig) {
-    const tierColors = {
-        free: { bg: '#e5e7eb', text: '#4b5563' },
-        basic: { bg: '#3b82f6', text: '#ffffff' },
-        premium: { bg: '#8b5cf6', text: '#ffffff' },
-        enterprise: { bg: '#f59e0b', text: '#ffffff' }
-    };
-    
-    const colors = tierColors[tier] || tierColors.free;
-    
-    // Get data from Stripe subscription
-    let nextBillingDate = 'N/A';
-    let daysRemaining = 0;
-    let isInTrial = false;
-    let subscriptionStatus = 'active';
+    generateBillingInfoHtml(tier, billingType, tierConfig) {
+        const tierColors = {
+            free: { bg: '#e5e7eb', text: '#4b5563' },
+            basic: { bg: '#3b82f6', text: '#ffffff' },
+            premium: { bg: '#8b5cf6', text: '#ffffff' }
+        };
+        
+        const colors = tierColors[tier] || tierColors.free;
+        
+        // Pricing info
+        const pricingInfo = {
+            basic: {
+                monthly: { fee: '9.90', activation: '29.90' },
+                metered: { perStamp: '0.05', activation: '29.90' }
+            },
+            premium: {
+                monthly: { fee: '14.90', activation: '49.90' },
+                metered: { perStamp: '0.055', activation: '49.90' }
+            }
+        };
+        
+        const currentPricing = pricingInfo[tier]?.[billingType] || {};
+        
+        // Get data from Stripe subscription
+        let nextBillingDate = 'N/A';
+        let daysRemaining = 0;
+        let isInTrial = false;
+        let subscriptionStatus = 'active';
+        let nextAmount = '0.00';
 
-    if (this.stripeSubscription) {
-        isInTrial = this.stripeSubscription.status === 'trialing';
-        subscriptionStatus = this.stripeSubscription.status;
-        
-        // Use trial_end if in trial, otherwise use current_period_end
-        const endTimestamp = isInTrial 
-            ? this.stripeSubscription.trial_end 
-            : this.stripeSubscription.current_period_end;
-        
-        if (endTimestamp) {
-            const endDate = new Date(endTimestamp * 1000);
-            nextBillingDate = endDate.toLocaleDateString('en-GB', { 
-                year: 'numeric', 
-                month: 'long', 
-                day: 'numeric' 
-            });
-            daysRemaining = Math.ceil((endDate - new Date()) / (1000 * 60 * 60 * 24));
-        }
-    }
-    
-    return `
-        <div class="billing-info-section" style="background: linear-gradient(135deg, ${colors.bg}, ${this.adjustColor(colors.bg, -20)}); color: ${colors.text}; padding: 2rem; border-radius: 12px; margin-top: 2rem;">
-            <div class="billing-header">
-                <div>
-                    <h2 style="color: ${colors.text}; margin: 0;">${tierConfig.displayName || 'Free'} Plan</h2>
-                    <p style="opacity: 0.9; margin: 0.5rem 0;">
-                        ${tier === 'free' ? 'Explore Tessere with limited features' :
-                          tier === 'basic' ? 'Perfect for small restaurants' :
-                          tier === 'premium' ? 'Full-featured for growing businesses' :
-                          'Unlimited everything with dedicated support'}
-                    </p>
-                </div>
-                <div class="plan-badge" style="background: rgba(255,255,255,0.2); padding: 0.5rem 1rem; border-radius: 20px; font-weight: 600;">
-                    ${tier.toUpperCase()}
-                </div>
-            </div>
+        if (this.stripeSubscription) {
+            isInTrial = this.stripeSubscription.status === 'trialing';
+            subscriptionStatus = this.stripeSubscription.status;
             
-            ${tier !== 'free' ? `
-                <div class="billing-details-grid">
-                    <div class="billing-detail-card">
-                        <span class="billing-label">Monthly Fee</span>
-                        <span class="billing-value">€${tierConfig.monthlyFee || 0}</span>
-                        <span class="billing-detail">${isInTrial ? 'Currently in included period' : 'Per month'}</span>
+            const endTimestamp = isInTrial 
+                ? this.stripeSubscription.trial_end 
+                : this.stripeSubscription.current_period_end;
+            
+            if (endTimestamp) {
+                const endDate = new Date(endTimestamp * 1000);
+                nextBillingDate = endDate.toLocaleDateString('en-GB', { 
+                    year: 'numeric', 
+                    month: 'long', 
+                    day: 'numeric' 
+                });
+                daysRemaining = Math.ceil((endDate - new Date()) / (1000 * 60 * 60 * 24));
+            }
+            
+            // Calculate next amount based on billing type
+            if (billingType === 'monthly') {
+                nextAmount = currentPricing.fee || '0.00';
+            } else if (billingType === 'metered') {
+                // Estimate based on current month's usage
+                const estimatedStamps = this.monthlyStamps * 1.1; // 10% buffer
+                nextAmount = (estimatedStamps * parseFloat(currentPricing.perStamp || 0)).toFixed(2);
+            }
+        }
+        
+        // Check for pending plan change
+        const hasPendingChange = this.restaurant?.pending_plan_change;
+        const pendingChangeDate = this.restaurant?.plan_change_effective_date;
+        
+        return `
+            <div class="billing-info-section" style="background: linear-gradient(135deg, ${colors.bg}, ${this.adjustColor(colors.bg, -20)}); color: ${colors.text}; padding: 2rem; border-radius: 12px; margin-top: 2rem;">
+                <div class="billing-header">
+                    <div>
+                        <h2 style="color: ${colors.text}; margin: 0;">${tierConfig.displayName || 'Free'} Plan</h2>
+                        <p style="opacity: 0.9; margin: 0.5rem 0 0 0; font-size: 0.875rem;">
+                            ${billingType === 'monthly' ? '💳 Fixed Monthly Billing - Unlimited Stamps' : '📊 Pay-Per-Stamp - Usage-Based Billing'}
+                        </p>
                     </div>
-                    
-                    <div class="billing-detail-card">
-                        <span class="billing-label">Next Payment</span>
-                        <span class="billing-value">${nextBillingDate}</span>
-                        <span class="billing-detail">${daysRemaining} days remaining</span>
-                    </div>
-                    
-                    <div class="billing-detail-card">
-                        <span class="billing-label">Status</span>
-                        <span class="billing-value" style="font-size: 1.25rem; text-transform: capitalize;">
-                            ${subscriptionStatus === 'trialing' ? '60 Days Included' : subscriptionStatus}
-                        </span>
-                        <span class="billing-detail">${isInTrial ? 'Activation fee paid' : 'Active subscription'}</span>
+                    <div class="plan-badge" style="background: rgba(255,255,255,0.2); padding: 0.5rem 1rem; border-radius: 20px; font-weight: 600;">
+                        ${tier.toUpperCase()}
                     </div>
                 </div>
                 
-                ${isInTrial ? `
-                    <div class="trial-notice" style="background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.3); padding: 1rem; border-radius: 8px; margin-top: 1.5rem;">
+                ${hasPendingChange ? `
+                    <div class="pending-change-alert" style="background: rgba(251, 191, 36, 0.15); border: 1px solid rgba(251, 191, 36, 0.3); padding: 1rem; border-radius: 8px; margin: 1.5rem 0;">
                         <svg width="20" height="20" fill="currentColor" viewBox="0 0 24 24" style="display: inline-block; vertical-align: middle; margin-right: 0.5rem;">
                             <path d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
                         </svg>
-                        <span>Your 60-day included period is active. First billing on ${nextBillingDate}</span>
+                        <span>Plan change scheduled: ${this.formatPendingChange(hasPendingChange)} on ${new Date(pendingChangeDate).toLocaleDateString('en-GB')}</span>
                     </div>
                 ` : ''}
                 
-                <div class="payment-method-section">
-                    <h3 style="color: ${colors.text}; margin-top: 2rem;">Payment Method</h3>
-                    ${this.stripeSubscription ? `
-                        <div class="payment-method-card" style="background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); padding: 1.5rem; border-radius: 8px;">
-                            <div style="display: flex; justify-content: space-between; align-items: center;">
-                                <div>
-                                    <p style="margin: 0 0 0.5rem 0; opacity: 0.9;">Card on file</p>
-                                    <p style="margin: 0; font-size: 0.875rem; opacity: 0.7;">Managed securely by Stripe</p>
-                                </div>
-                                <button class="btn-manage-billing" onclick="settingsBilling.openBillingPortal()" style="background: rgba(255,255,255,0.95); color: ${colors.bg}; padding: 0.625rem 1.25rem; border: none; border-radius: 6px; font-weight: 600; cursor: pointer; transition: all 0.2s;">
-                                    Manage Payment
-                                </button>
+                ${tier !== 'free' ? `
+                    <div class="billing-details-grid" style="display: grid; grid-template-columns: repeat(${billingType === 'metered' ? '4' : '3'}, 1fr); gap: 1rem; margin: 2rem 0;">
+                        ${billingType === 'monthly' ? `
+                            <div class="billing-detail-card" style="background: rgba(255,255,255,0.1); padding: 1.25rem; border-radius: 8px; border: 1px solid rgba(255,255,255,0.2);">
+                                <span class="billing-label" style="display: block; font-size: 0.875rem; opacity: 0.9; margin-bottom: 0.5rem;">Monthly Fee</span>
+                                <span class="billing-value" style="display: block; font-size: 1.75rem; font-weight: 700; margin-bottom: 0.25rem;">€${currentPricing.fee}</span>
+                                <span class="billing-detail" style="display: block; font-size: 0.813rem; opacity: 0.8;">${isInTrial ? 'After trial period' : 'Per month'}</span>
                             </div>
+                        ` : `
+                            <div class="billing-detail-card" style="background: rgba(255,255,255,0.1); padding: 1.25rem; border-radius: 8px; border: 1px solid rgba(255,255,255,0.2);">
+                                <span class="billing-label" style="display: block; font-size: 0.875rem; opacity: 0.9; margin-bottom: 0.5rem;">Rate Per Stamp</span>
+                                <span class="billing-value" style="display: block; font-size: 1.75rem; font-weight: 700; margin-bottom: 0.25rem;">€${currentPricing.perStamp}</span>
+                                <span class="billing-detail" style="display: block; font-size: 0.813rem; opacity: 0.8;">Pay as you go</span>
+                            </div>
+                            
+                            <div class="billing-detail-card" style="background: rgba(255,255,255,0.1); padding: 1.25rem; border-radius: 8px; border: 1px solid rgba(255,255,255,0.2);">
+                                <span class="billing-label" style="display: block; font-size: 0.875rem; opacity: 0.9; margin-bottom: 0.5rem;">Stamps This Month</span>
+                                <span class="billing-value" style="display: block; font-size: 1.75rem; font-weight: 700; margin-bottom: 0.25rem;">${this.monthlyStamps.toLocaleString()}</span>
+                                <span class="billing-detail" style="display: block; font-size: 0.813rem; opacity: 0.8;">€${(this.monthlyStamps * parseFloat(currentPricing.perStamp || 0)).toFixed(2)} cost</span>
+                            </div>
+                        `}
+                        
+                        <div class="billing-detail-card" style="background: rgba(255,255,255,0.1); padding: 1.25rem; border-radius: 8px; border: 1px solid rgba(255,255,255,0.2);">
+                            <span class="billing-label" style="display: block; font-size: 0.875rem; opacity: 0.9; margin-bottom: 0.5rem;">Next Payment</span>
+                            <span class="billing-value" style="display: block; font-size: 1.75rem; font-weight: 700; margin-bottom: 0.25rem;">${nextBillingDate}</span>
+                            <span class="billing-detail" style="display: block; font-size: 0.813rem; opacity: 0.8;">${daysRemaining} days remaining</span>
                         </div>
-                    ` : `
-                        <div class="stripe-placeholder" style="background: rgba(255,255,255,0.1); border: 2px dashed rgba(255,255,255,0.3); padding: 2rem; border-radius: 8px; text-align: center;">
-                            <svg width="48" height="48" fill="currentColor" viewBox="0 0 24 24" style="opacity: 0.5; margin-bottom: 1rem;">
-                                <path d="M3 10h11v2H3v-2zm0 4h7v2H3v-2zm0-8h18v2H3V6zm14 12.59L14.41 16 19 11.41 21.59 14 19 16.59 16.41 14 14 16.59z"/>
+                        
+                        <div class="billing-detail-card" style="background: rgba(255,255,255,0.1); padding: 1.25rem; border-radius: 8px; border: 1px solid rgba(255,255,255,0.2);">
+                            <span class="billing-label" style="display: block; font-size: 0.875rem; opacity: 0.9; margin-bottom: 0.5rem;">Est. Next Bill</span>
+                            <span class="billing-value" style="display: block; font-size: 1.75rem; font-weight: 700; margin-bottom: 0.25rem;">€${nextAmount}</span>
+                            <span class="billing-detail" style="display: block; font-size: 0.813rem; opacity: 0.8;">${billingType === 'metered' ? 'Estimated' : 'Fixed amount'}</span>
+                        </div>
+                    </div>
+                    
+                    ${isInTrial ? `
+                        <div class="trial-notice" style="background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.3); padding: 1rem; border-radius: 8px; margin-top: 1.5rem;">
+                            <svg width="20" height="20" fill="currentColor" viewBox="0 0 24 24" style="display: inline-block; vertical-align: middle; margin-right: 0.5rem;">
+                                <path d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
                             </svg>
-                            <p style="opacity: 0.8;">No payment method on file</p>
+                            <span>Your 60-day included period is active. First billing on ${nextBillingDate}</span>
                         </div>
-                    `}
+                    ` : ''}
+                    
+                    <div class="payment-method-section">
+                        <h3 style="color: ${colors.text}; margin-top: 2rem;">Payment Method</h3>
+                        ${this.stripeSubscription ? `
+                            <div class="payment-method-card" style="background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); padding: 1.5rem; border-radius: 8px;">
+                                <div style="display: flex; justify-content: space-between; align-items: center;">
+                                    <div>
+                                        <p style="margin: 0 0 0.5rem 0; opacity: 0.9;">Card on file</p>
+                                        <p style="margin: 0; font-size: 0.875rem; opacity: 0.7;">Managed securely by Stripe</p>
+                                    </div>
+                                    <button class="btn-manage-billing" onclick="settingsBilling.openBillingPortal()" style="background: rgba(255,255,255,0.95); color: ${colors.bg}; padding: 0.625rem 1.25rem; border: none; border-radius: 6px; font-weight: 600; cursor: pointer; transition: all 0.2s;">
+                                        Manage Payment
+                                    </button>
+                                </div>
+                            </div>
+                        ` : `
+                            <div class="stripe-placeholder" style="background: rgba(255,255,255,0.1); border: 2px dashed rgba(255,255,255,0.3); padding: 2rem; border-radius: 8px; text-align: center;">
+                                <svg width="48" height="48" fill="currentColor" viewBox="0 0 24 24" style="opacity: 0.5; margin-bottom: 1rem;">
+                                    <path d="M3 10h11v2H3v-2zm0 4h7v2H3v-2zm0-8h18v2H3V6zm14 12.59L14.41 16 19 11.41 21.59 14 19 16.59 16.41 14 14 16.59z"/>
+                                </svg>
+                                <p style="opacity: 0.8;">No payment method on file</p>
+                            </div>
+                        `}
+                    </div>
+                    
+                    <div class="plan-actions" style="margin-top: 2rem; padding-top: 2rem; border-top: 1px solid rgba(255,255,255,0.2); display: flex; gap: 1rem; flex-wrap: wrap;">
+                        <button class="btn-change-plan" onclick="settingsBilling.openPlanModal()" style="flex: 1; min-width: 200px; background: rgba(255,255,255,0.95); color: ${colors.bg}; padding: 0.75rem 1.5rem; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; transition: all 0.2s;">
+                            ${hasPendingChange ? 'View Scheduled Change' : 'Change Plan'}
+                        </button>
+                        ${!hasPendingChange ? `
+                            <button class="btn-cancel-plan" onclick="settingsBilling.confirmCancellation()" style="flex: 1; min-width: 200px; background: rgba(239, 68, 68, 0.15); color: rgba(255,255,255,0.95); padding: 0.75rem 1.5rem; border: 1px solid rgba(239, 68, 68, 0.3); border-radius: 8px; font-weight: 600; cursor: pointer; transition: all 0.2s;">
+                                Cancel Subscription
+                            </button>
+                        ` : `
+                            <button class="btn-cancel-change" onclick="settingsBilling.cancelPendingChange()" style="flex: 1; min-width: 200px; background: rgba(239, 68, 68, 0.15); color: rgba(255,255,255,0.95); padding: 0.75rem 1.5rem; border: 1px solid rgba(239, 68, 68, 0.3); border-radius: 8px; font-weight: 600; cursor: pointer; transition: all 0.2s;">
+                                Cancel Scheduled Change
+                            </button>
+                        `}
+                    </div>
+                ` : `
+                    <div class="free-plan-cta" style="margin-top: 2rem; text-align: center; padding: 2rem; background: rgba(255,255,255,0.1); border-radius: 8px;">
+                        <h3 style="color: ${colors.text}; margin-bottom: 1rem;">Upgrade to unlock more features</h3>
+                        <button class="btn-upgrade" style="background: rgba(255,255,255,0.95); color: ${colors.bg}; padding: 0.75rem 2rem; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; font-size: 1rem;" onclick="settingsBilling.openPlanModal()">
+                            View Plans
+                        </button>
+                    </div>
+                `}
+            </div>
+        `;
+    }
+
+    formatPendingChange(changeString) {
+        try {
+            const parsed = JSON.parse(changeString);
+            if (parsed.tier === 'free') return 'Cancellation';
+            return `${parsed.tier.charAt(0).toUpperCase() + parsed.tier.slice(1)} (${parsed.billing_type === 'monthly' ? 'Fixed' : 'Pay-per-stamp'})`;
+        } catch {
+            return changeString;
+        }
+    }
+
+    openPlanModal() {
+        // Create and show modal
+        const modal = document.createElement('div');
+        modal.className = 'modal active';
+        modal.id = 'plan-change-modal';
+        modal.innerHTML = this.generatePlanModalHtml();
+        document.body.appendChild(modal);
+        document.body.style.overflow = 'hidden';
+    }
+
+    generatePlanModalHtml() {
+        const currentTier = this.restaurant?.subscription_tier || 'free';
+        const currentBilling = this.restaurant?.billing_type || 'monthly';
+        
+        return `
+            <div class="modal-content" style="max-width: 900px; max-height: 90vh; overflow-y: auto;">
+                <div class="modal-header" style="padding: 1.5rem; border-bottom: 1px solid #e5e7eb;">
+                    <h2 style="margin: 0;">Change Your Plan</h2>
+                    <button class="modal-close" onclick="settingsBilling.closePlanModal()" style="background: none; border: none; font-size: 1.5rem; cursor: pointer; color: #6b7280;">×</button>
                 </div>
-            ` : ''}
-            
-            ${tier !== 'enterprise' ? `
-                <div class="upgrade-section" style="margin-top: 2rem; padding-top: 2rem; border-top: 1px solid rgba(255,255,255,0.2);">
-                    <h3 style="color: ${colors.text};">${tier === 'free' ? 'Upgrade Your Business' : 'Need More Features?'}</h3>
-                    <button class="btn-upgrade" style="background: rgba(255,255,255,0.95); color: ${colors.bg}; padding: 0.75rem 1.5rem; border: none; border-radius: 8px; font-weight: 600; cursor: pointer;" 
-                            onclick="window.subscriptionManager.showUpgradeModal('settings', '${tier === 'free' ? 'basic' : tier === 'basic' ? 'premium' : 'enterprise'}')">
-                        ${tier === 'free' ? 'View Plans' : 'Upgrade Plan'}
-                    </button>
+                
+                <div style="padding: 2rem;">
+                    <p style="color: #6b7280; margin-bottom: 2rem;">Changes will take effect at your next billing cycle (${this.stripeSubscription ? new Date(this.stripeSubscription.current_period_end * 1000).toLocaleDateString('en-GB') : 'N/A'})</p>
+                    
+                    <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 2rem;">
+                        <!-- Basic Monthly -->
+                        <div class="plan-option ${currentTier === 'basic' && currentBilling === 'monthly' ? 'current' : ''}" style="border: 2px solid ${currentTier === 'basic' && currentBilling === 'monthly' ? '#3b82f6' : '#e5e7eb'}; border-radius: 12px; padding: 1.5rem; position: relative;">
+                            ${currentTier === 'basic' && currentBilling === 'monthly' ? '<div style="position: absolute; top: -12px; left: 50%; transform: translateX(-50%); background: #3b82f6; color: white; padding: 0.25rem 0.75rem; border-radius: 12px; font-size: 0.75rem; font-weight: 600;">CURRENT PLAN</div>' : ''}
+                            <h3 style="margin: 0 0 0.5rem 0;">Basic - Monthly</h3>
+                            <div style="font-size: 2rem; font-weight: 700; color: #3b82f6; margin-bottom: 0.5rem;">€9.90<span style="font-size: 1rem; font-weight: 400; color: #6b7280;">/mo</span></div>
+                            <p style="color: #6b7280; font-size: 0.875rem; margin-bottom: 1rem;">Unlimited stamps included</p>
+                            <ul style="list-style: none; padding: 0; margin: 0 0 1.5rem 0;">
+                                <li style="padding: 0.5rem 0; color: #374151;">✓ 1 loyalty card</li>
+                                <li style="padding: 0.5rem 0; color: #374151;">✓ 3 promotions</li>
+                                <li style="padding: 0.5rem 0; color: #374151;">✓ 2 events</li>
+                                <li style="padding: 0.5rem 0; color: #374151;">✓ 2 notifications/month</li>
+                            </ul>
+                            ${currentTier === 'basic' && currentBilling === 'monthly' ? '' : `
+                                <button onclick="settingsBilling.selectNewPlan('basic', 'monthly')" style="width: 100%; padding: 0.75rem; background: #3b82f6; color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer;">Select This Plan</button>
+                            `}
+                        </div>
+                        
+                        <!-- Basic Metered -->
+                        <div class="plan-option ${currentTier === 'basic' && currentBilling === 'metered' ? 'current' : ''}" style="border: 2px solid ${currentTier === 'basic' && currentBilling === 'metered' ? '#3b82f6' : '#e5e7eb'}; border-radius: 12px; padding: 1.5rem; position: relative;">
+                            ${currentTier === 'basic' && currentBilling === 'metered' ? '<div style="position: absolute; top: -12px; left: 50%; transform: translateX(-50%); background: #3b82f6; color: white; padding: 0.25rem 0.75rem; border-radius: 12px; font-size: 0.75rem; font-weight: 600;">CURRENT PLAN</div>' : ''}
+                            <h3 style="margin: 0 0 0.5rem 0;">Basic - Pay-Per-Stamp</h3>
+                            <div style="font-size: 2rem; font-weight: 700; color: #3b82f6; margin-bottom: 0.5rem;">€0.05<span style="font-size: 1rem; font-weight: 400; color: #6b7280;">/stamp</span></div>
+                            <p style="color: #6b7280; font-size: 0.875rem; margin-bottom: 1rem;">No monthly fee, pay as you go</p>
+                            <ul style="list-style: none; padding: 0; margin: 0 0 1.5rem 0;">
+                                <li style="padding: 0.5rem 0; color: #374151;">✓ 1 loyalty card</li>
+                                <li style="padding: 0.5rem 0; color: #374151;">✓ 3 promotions</li>
+                                <li style="padding: 0.5rem 0; color: #374151;">✓ 2 events</li>
+                                <li style="padding: 0.5rem 0; color: #374151;">✓ 2 notifications/month</li>
+                            </ul>
+                            ${currentTier === 'basic' && currentBilling === 'metered' ? '' : `
+                                <button onclick="settingsBilling.selectNewPlan('basic', 'metered')" style="width: 100%; padding: 0.75rem; background: #3b82f6; color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer;">Select This Plan</button>
+                            `}
+                        </div>
+                        
+                        <!-- Premium Monthly -->
+                        <div class="plan-option ${currentTier === 'premium' && currentBilling === 'monthly' ? 'current' : ''}" style="border: 2px solid ${currentTier === 'premium' && currentBilling === 'monthly' ? '#8b5cf6' : '#e5e7eb'}; border-radius: 12px; padding: 1.5rem; position: relative;">
+                            ${currentTier === 'premium' && currentBilling === 'monthly' ? '<div style="position: absolute; top: -12px; left: 50%; transform: translateX(-50%); background: #8b5cf6; color: white; padding: 0.25rem 0.75rem; border-radius: 12px; font-size: 0.75rem; font-weight: 600;">CURRENT PLAN</div>' : ''}
+                            <h3 style="margin: 0 0 0.5rem 0;">Premium - Monthly</h3>
+                            <div style="font-size: 2rem; font-weight: 700; color: #8b5cf6; margin-bottom: 0.5rem;">€14.90<span style="font-size: 1rem; font-weight: 400; color: #6b7280;">/mo</span></div>
+                            <p style="color: #6b7280; font-size: 0.875rem; margin-bottom: 1rem;">Unlimited stamps included</p>
+                            <ul style="list-style: none; padding: 0; margin: 0 0 1.5rem 0;">
+                                <li style="padding: 0.5rem 0; color: #374151;">✓ 3 loyalty cards</li>
+                                <li style="padding: 0.5rem 0; color: #374151;">✓ 9 promotions</li>
+                                <li style="padding: 0.5rem 0; color: #374151;">✓ 6 events</li>
+                                <li style="padding: 0.5rem 0; color: #374151;">✓ 6 notifications/month</li>
+                                <li style="padding: 0.5rem 0; color: #374151;">✓ Priority support</li>
+                            </ul>
+                            ${currentTier === 'premium' && currentBilling === 'monthly' ? '' : `
+                                <button onclick="settingsBilling.selectNewPlan('premium', 'monthly')" style="width: 100%; padding: 0.75rem; background: #8b5cf6; color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer;">Select This Plan</button>
+                            `}
+                        </div>
+                        
+                        <!-- Premium Metered -->
+                        <div class="plan-option ${currentTier === 'premium' && currentBilling === 'metered' ? 'current' : ''}" style="border: 2px solid ${currentTier === 'premium' && currentBilling === 'metered' ? '#8b5cf6' : '#e5e7eb'}; border-radius: 12px; padding: 1.5rem; position: relative;">
+                            ${currentTier === 'premium' && currentBilling === 'metered' ? '<div style="position: absolute; top: -12px; left: 50%; transform: translateX(-50%); background: #8b5cf6; color: white; padding: 0.25rem 0.75rem; border-radius: 12px; font-size: 0.75rem; font-weight: 600;">CURRENT PLAN</div>' : ''}
+                            <h3 style="margin: 0 0 0.5rem 0;">Premium - Pay-Per-Stamp</h3>
+                            <div style="font-size: 2rem; font-weight: 700; color: #8b5cf6; margin-bottom: 0.5rem;">€0.055<span style="font-size: 1rem; font-weight: 400; color: #6b7280;">/stamp</span></div>
+                            <p style="color: #6b7280; font-size: 0.875rem; margin-bottom: 1rem;">No monthly fee, pay as you go</p>
+                            <ul style="list-style: none; padding: 0; margin: 0 0 1.5rem 0;">
+                                <li style="padding: 0.5rem 0; color: #374151;">✓ 3 loyalty cards</li>
+                                <li style="padding: 0.5rem 0; color: #374151;">✓ 9 promotions</li>
+                                <li style="padding: 0.5rem 0; color: #374151;">✓ 6 events</li>
+                                <li style="padding: 0.5rem 0; color: #374151;">✓ 6 notifications/month</li>
+                                <li style="padding: 0.5rem 0; color: #374151;">✓ Priority support</li>
+                            </ul>
+                            ${currentTier === 'premium' && currentBilling === 'metered' ? '' : `
+                                <button onclick="settingsBilling.selectNewPlan('premium', 'metered')" style="width: 100%; padding: 0.75rem; background: #8b5cf6; color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer;">Select This Plan</button>
+                            `}
+                        </div>
+                    </div>
                 </div>
-            ` : ''}
-        </div>
-    `;
-}
+            </div>
+        `;
+    }
+
+    closePlanModal() {
+        const modal = document.getElementById('plan-change-modal');
+        if (modal) {
+            modal.remove();
+            document.body.style.overflow = '';
+        }
+    }
+
+    async selectNewPlan(tier, billingType) {
+        if (!confirm(`Switch to ${tier.charAt(0).toUpperCase() + tier.slice(1)} (${billingType === 'monthly' ? 'Fixed Monthly' : 'Pay-Per-Stamp'})?\n\nThis change will take effect at your next billing cycle.`)) {
+            return;
+        }
+
+        try {
+            const response = await fetch('/api/update-subscription', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    restaurantId: this.restaurant.id,
+                    newTier: tier,
+                    newBillingType: billingType
+                })
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to update subscription');
+            }
+
+            alert('Plan change scheduled successfully! Changes will apply at your next billing cycle.');
+            this.closePlanModal();
+            location.reload();
+
+        } catch (error) {
+            console.error('Error updating plan:', error);
+            alert('Failed to update plan. Please try again or contact support.');
+        }
+    }
+
+    async confirmCancellation() {
+        if (!confirm('Are you sure you want to cancel your subscription?\n\nYou will retain access until the end of your current billing period, after which your account will be downgraded to the Free plan.')) {
+            return;
+        }
+
+        try {
+            const response = await fetch('/api/update-subscription', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    restaurantId: this.restaurant.id,
+                    newTier: 'free',
+                    newBillingType: 'monthly'
+                })
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to cancel subscription');
+            }
+
+            alert('Subscription cancelled. You will retain access until the end of your current billing period.');
+            location.reload();
+
+        } catch (error) {
+            console.error('Error cancelling subscription:', error);
+            alert('Failed to cancel subscription. Please try again or contact support.');
+        }
+    }
+
+    async cancelPendingChange() {
+        if (!confirm('Cancel your scheduled plan change?')) {
+            return;
+        }
+
+        try {
+            const response = await fetch('/api/cancel-pending-change', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    restaurantId: this.restaurant.id
+                })
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to cancel pending change');
+            }
+
+            alert('Scheduled plan change cancelled.');
+            location.reload();
+
+        } catch (error) {
+            console.error('Error cancelling pending change:', error);
+            alert('Failed to cancel pending change. Please try again.');
+        }
+    }
 
     async openBillingPortal() {
-    try {
-        if (!this.restaurant?.stripe_customer_id) {
-            alert('No payment method on file. Please contact support.');
-            return;
-        }
-
-        console.log('Opening billing portal for customer:', this.restaurant.stripe_customer_id);
-
-        const response = await fetch('/api/create-billing-portal', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                customerId: this.restaurant.stripe_customer_id,
-                returnUrl: window.location.href
-            })
-        });
-
-        // Try to get the response text first
-        const text = await response.text();
-        console.log('Raw response:', text);
-        
-        let data;
         try {
-            data = JSON.parse(text);
-        } catch (e) {
-            console.error('Response is not JSON:', text);
-            alert('Server error: ' + text);
-            return;
-        }
+            if (!this.restaurant?.stripe_customer_id) {
+                alert('No payment method on file. Please contact support.');
+                return;
+            }
 
-        console.log('Billing portal response:', data);
+            const response = await fetch('/api/create-billing-portal', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    customerId: this.restaurant.stripe_customer_id,
+                    returnUrl: window.location.href
+                })
+            });
 
-        if (response.ok && data.url) {
-            window.location.href = data.url;
-        } else {
-            console.error('Billing portal error:', data);
-            alert(`Unable to open billing portal: ${data.error || 'Unknown error'}`);
+            const data = await response.json();
+
+            if (response.ok && data.url) {
+                window.location.href = data.url;
+            } else {
+                alert(`Unable to open billing portal: ${data.error || 'Unknown error'}`);
+            }
+        } catch (error) {
+            console.error('Error opening billing portal:', error);
+            alert('Error opening billing portal: ' + error.message);
         }
-    } catch (error) {
-        console.error('Error opening billing portal:', error);
-        alert('Error opening billing portal: ' + error.message);
     }
-}
 
+    // Keep all existing methods for authorized emails, restaurant info, etc.
     async loadAuthorizedEmails() {
         try {
             const { data } = await supabase
@@ -568,173 +840,3 @@ class SettingsBillingManager {
 // Initialize and export
 const settingsBilling = new SettingsBillingManager();
 window.settingsBilling = settingsBilling;
-
-// Add required styles
-if (!document.getElementById('billing-styles')) {
-    const styles = document.createElement('style');
-    styles.id = 'billing-styles';
-    styles.textContent = `
-        .usage-overview-section {
-            margin-bottom: 2rem;
-        }
-        
-        .usage-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 1rem;
-            margin-top: 1rem;
-        }
-        
-        .usage-card {
-            background: #f9fafb;
-            padding: 1.25rem;
-            border-radius: 8px;
-            border: 1px solid #e5e7eb;
-        }
-        
-        .usage-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 0.75rem;
-        }
-        
-        .usage-label {
-            font-size: 0.875rem;
-            font-weight: 600;
-            color: #374151;
-        }
-        
-        .usage-count {
-            font-size: 0.875rem;
-            font-weight: 500;
-        }
-        
-        .usage-bar {
-            height: 8px;
-            background: #e5e7eb;
-            border-radius: 4px;
-            overflow: hidden;
-            margin-bottom: 0.5rem;
-        }
-        
-        .usage-progress {
-            height: 100%;
-            background: #7c5ce6;
-            transition: width 0.3s ease;
-        }
-        
-        .usage-limit {
-            font-size: 0.75rem;
-            color: #6b7280;
-        }
-        
-        .billing-info-section {
-            position: relative;
-            overflow: hidden;
-        }
-        
-        .billing-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-start;
-            margin-bottom: 2rem;
-        }
-        
-        .billing-details-grid {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 1rem;
-            margin: 2rem 0;
-        }
-        
-        .billing-detail-card {
-            background: rgba(255,255,255,0.1);
-            padding: 1.25rem;
-            border-radius: 8px;
-            border: 1px solid rgba(255,255,255,0.2);
-        }
-        
-        .billing-label {
-            display: block;
-            font-size: 0.875rem;
-            opacity: 0.9;
-            margin-bottom: 0.5rem;
-        }
-        
-        .billing-value {
-            display: block;
-            font-size: 1.75rem;
-            font-weight: 700;
-            margin-bottom: 0.25rem;
-        }
-        
-        .billing-detail {
-            display: block;
-            font-size: 0.813rem;
-            opacity: 0.8;
-        }
-        
-        .staff-item {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 1rem;
-            background: #f9fafb;
-            border: 1px solid #e5e7eb;
-            border-radius: 8px;
-            margin-bottom: 0.75rem;
-        }
-        
-        .staff-info {
-            display: flex;
-            align-items: center;
-            gap: 1rem;
-        }
-        
-        .staff-email {
-            font-weight: 500;
-            color: #111827;
-        }
-        
-        .staff-badge {
-            background: #dbeafe;
-            color: #1e40af;
-            padding: 0.25rem 0.75rem;
-            border-radius: 12px;
-            font-size: 0.75rem;
-            font-weight: 600;
-        }
-        
-        .remove-staff {
-            background: #fee2e2;
-            border: 1px solid #fca5a5;
-            color: #ef4444;
-            padding: 0.5rem;
-            border-radius: 6px;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-        
-        .remove-staff:hover {
-            background: #ef4444;
-            color: white;
-        }
-        
-        .btn-manage-billing:hover {
-            transform: translateY(-1px);
-            box-shadow: 0 4px 8px rgba(0,0,0,0.15);
-        }
-        
-        @media (max-width: 768px) {
-            .usage-grid {
-                grid-template-columns: 1fr;
-            }
-            
-            .billing-details-grid {
-                grid-template-columns: 1fr;
-            }
-        }
-    `;
-    document.head.appendChild(styles);
-}
