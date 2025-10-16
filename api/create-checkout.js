@@ -44,6 +44,7 @@ module.exports = async (req, res) => {
       payment_intent_data: {
         setup_future_usage: 'off_session' // Save payment method for future use
       },
+      allow_promotion_codes: true,  // ← ADD THIS LINE
       success_url: `${req.headers.origin}/dashboard?payment=success`,
       cancel_url: `${req.headers.origin}/dashboard?payment=cancelled`,
       metadata: { 
