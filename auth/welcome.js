@@ -1,7 +1,7 @@
 // welcome.js - Combined authentication and checkout flow
 
 let selectedPlan = null;
-let selectedBillingType = 'monthly'; // ADD THIS
+let selectedBillingType = 'monthly';
 let needsCheckout = false;
 
 // Initialize
@@ -12,8 +12,15 @@ document.addEventListener('DOMContentLoaded', () => {
     // Check if coming from landing with pre-selected plan
     const urlParams = new URLSearchParams(window.location.search);
     const preselectedPlan = urlParams.get('plan');
-    if (preselectedPlan && ['basic', 'premium'].includes(preselectedPlan)) {
-        setTimeout(() => openAuthModal('signup', preselectedPlan), 500);
+    const preselectedBilling = urlParams.get('billing') || 'monthly'; // Get billing type from URL
+    
+    if (preselectedPlan && ['free', 'basic', 'premium'].includes(preselectedPlan)) {
+        // Set the billing type toggle before opening modal
+        if (preselectedBilling === 'metered') {
+            switchBillingType('metered');
+        }
+        
+        setTimeout(() => openAuthModal('signup', preselectedPlan, preselectedBilling), 500);
     }
 });
 
@@ -53,7 +60,6 @@ function initializeForms() {
     }
 }
 
-// ADD THIS FUNCTION
 /**
  * Switch billing type toggle
  */
@@ -91,7 +97,6 @@ function switchBillingType(type) {
     }
 }
 
-// ADD THIS FUNCTION
 /**
  * Select a plan (called when user clicks Get Started)
  */
@@ -102,9 +107,9 @@ function selectPlan(planTier) {
 /**
  * Open auth modal
  */
-function openAuthModal(mode = 'signup', plan = 'free', billingType = 'monthly') { // MODIFIED SIGNATURE
+function openAuthModal(mode = 'signup', plan = 'free', billingType = 'monthly') {
     selectedPlan = plan;
-    selectedBillingType = billingType; // ADD THIS
+    selectedBillingType = billingType;
     needsCheckout = (plan !== 'free');
     
     const modal = document.getElementById('authModal');
@@ -112,6 +117,8 @@ function openAuthModal(mode = 'signup', plan = 'free', billingType = 'monthly') 
     document.body.style.overflow = 'hidden';
     
     switchTab(mode);
+    
+    console.log('Opening modal with:', { plan, billingType, needsCheckout });
 }
 
 /**
@@ -187,6 +194,13 @@ async function handleSignup(e) {
         const restaurantName = restaurantInput.value.trim();
         const password = passwordInput.value;
         
+        console.log('Signing up with:', { 
+            email, 
+            restaurantName, 
+            plan: selectedPlan, 
+            billingType: selectedBillingType 
+        });
+        
         // Step 1: Create auth user ONLY
         const { data: authData, error: authError } = await supabase.auth.signUp({
             email: email,
@@ -208,22 +222,27 @@ async function handleSignup(e) {
         );
         
         if (dbError || !result.success) {
-            // Cleanup: delete auth user via admin API
-            // Since we can't delete from client, inform user
+            // Cleanup: sign out the auth user
             await supabase.auth.signOut();
-            throw new Error(result.error || 'Failed to create restaurant. Please contact support with this email: ' + email);
+            throw new Error(result?.error || 'Failed to create restaurant. Please contact support with this email: ' + email);
         }
         
         // Success!
         sessionStorage.setItem('userRole', 'owner');
         sessionStorage.setItem('selectedPlan', selectedPlan);
-        sessionStorage.setItem('selectedBillingType', selectedBillingType); // ADD THIS
+        sessionStorage.setItem('selectedBillingType', selectedBillingType);
+        sessionStorage.setItem('restaurantId', result.restaurant_id);
         
         showSuccess('Account created successfully!');
         
         setTimeout(() => {
             if (needsCheckout && selectedPlan !== 'free') {
-                createStripeCheckout(selectedPlan, result.restaurant_id, selectedBillingType); // MODIFIED
+                console.log('Creating checkout for:', { 
+                    plan: selectedPlan, 
+                    billing: selectedBillingType,
+                    restaurantId: result.restaurant_id
+                });
+                createStripeCheckout(selectedPlan, result.restaurant_id, selectedBillingType);
             } else {
                 window.location.href = '/dashboard/index.html';
             }
@@ -326,26 +345,42 @@ async function handleLogin(e) {
 /**
  * Create Stripe checkout session
  */
-async function createStripeCheckout(planId, restaurantId, billingType) { // MODIFIED SIGNATURE
+async function createStripeCheckout(planId, restaurantId, billingType) {
     try {
-        showSuccess(`Creating checkout for ${planId}...`);
+        showSuccess(`Creating checkout for ${planId} (${billingType})...`);
+        
+        console.log('Sending to API:', { 
+            planId, 
+            restaurantId, 
+            billingType 
+        });
         
         // Call your Vercel API
         const response = await fetch('/api/create-checkout', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 
+                'Content-Type': 'application/json'
+            },
             body: JSON.stringify({
                 planId: planId,
                 restaurantId: restaurantId,
-                billingType: billingType // ADD THIS
+                billingType: billingType
             })
         });
         
         if (!response.ok) {
+            const errorText = await response.text();
+            console.error('Checkout API error:', errorText);
             throw new Error('Failed to create checkout session');
         }
         
         const { url } = await response.json();
+        
+        if (!url) {
+            throw new Error('No checkout URL received');
+        }
+        
+        console.log('Redirecting to Stripe:', url);
         
         // Redirect to Stripe Checkout
         window.location.href = url;
@@ -358,19 +393,6 @@ async function createStripeCheckout(planId, restaurantId, billingType) { // MODI
             window.location.href = '/dashboard/index.html';
         }, 2000);
     }
-}
-
-/**
- * Create URL-safe slug from text
- */
-function createSlug(text) {
-    return text
-        .toLowerCase()
-        .trim()
-        .replace(/[^\w\s-]/g, '')
-        .replace(/[\s_-]+/g, '-')
-        .replace(/^-+|-+$/g, '')
-        .substring(0, 50);
 }
 
 /**
