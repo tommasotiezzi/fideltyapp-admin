@@ -368,8 +368,8 @@ class SettingsBillingManager {
                             ${hasPendingChange ? 'View Scheduled Change' : 'Change Plan'}
                         </button>
                         ${!hasPendingChange ? `
-                            <button class="btn-cancel-plan" onclick="settingsBilling.confirmCancellation()" style="flex: 1; min-width: 200px; background: rgba(239, 68, 68, 0.15); color: rgba(255,255,255,0.95); padding: 0.75rem 1.5rem; border: 1px solid rgba(239, 68, 68, 0.3); border-radius: 8px; font-weight: 600; cursor: pointer; transition: all 0.2s; font-size: 14px;">
-                                Cancel Subscription
+                            <button class="btn-manage-subscription" onclick="settingsBilling.openBillingPortal()" style="flex: 1; min-width: 200px; background: rgba(255,255,255,0.15); color: rgba(255,255,255,0.95); padding: 0.75rem 1.5rem; border: 1px solid rgba(255,255,255,0.3); border-radius: 8px; font-weight: 600; cursor: pointer; transition: all 0.2s; font-size: 14px;">
+                                Manage Subscription
                             </button>
                         ` : `
                             <button class="btn-cancel-change" onclick="settingsBilling.cancelPendingChange()" style="flex: 1; min-width: 200px; background: rgba(239, 68, 68, 0.15); color: rgba(255,255,255,0.95); padding: 0.75rem 1.5rem; border: 1px solid rgba(239, 68, 68, 0.3); border-radius: 8px; font-weight: 600; cursor: pointer; transition: all 0.2s; font-size: 14px;">
