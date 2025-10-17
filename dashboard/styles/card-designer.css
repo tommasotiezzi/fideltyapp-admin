@@ -261,7 +261,6 @@
     padding-top: 0.75rem;
     border-top: 1px solid rgba(255, 255, 255, 0.3);
     display: flex;
-    justify-content: space-between;
     align-items: center;
     margin-top: auto;
     flex-shrink: 0;
@@ -277,11 +276,61 @@
 .reward-text {
     font-weight: 600;
     font-size: 0.875rem;
-    text-align: right;
     flex: 1;
     margin-left: 0.5rem;
     line-height: 1.2;
     word-break: break-word;
+}
+
+/* Promotion Rules Icon - Inline with reward text */
+.promotion-rules-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 50%;
+    margin-left: 8px;
+    cursor: pointer;
+    vertical-align: middle;
+    transition: all 0.2s;
+}
+
+.promotion-rules-icon:hover {
+    transform: scale(1.1);
+    background: rgba(255, 255, 255, 0.3);
+}
+
+.promotion-rules-icon svg {
+    width: 14px;
+    height: 14px;
+    fill: rgba(255, 255, 255, 0.9);
+}
+
+/* Tooltip for rules */
+.rules-tooltip {
+    position: absolute;
+    bottom: 32px;
+    right: 0;
+    background: rgba(31, 41, 55, 0.95);
+    color: white;
+    padding: 8px 12px;
+    border-radius: 6px;
+    font-size: 12px;
+    line-height: 1.4;
+    white-space: normal;
+    width: 200px;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.2s, visibility 0.2s;
+    pointer-events: none;
+    z-index: 100;
+}
+
+.promotion-rules-icon:hover .rules-tooltip {
+    opacity: 1;
+    visibility: visible;
 }
 
 /* Adjust reward text size for high stamp counts */
@@ -317,9 +366,10 @@
     color: #333;
 }
 
-/* Form inputs */
+/* Form inputs - INCLUDING TEXTAREA */
 input[type="text"],
-select {
+select,
+textarea {
     width: 100%;
     padding: 0.75rem 1rem;
     border: 1px solid #e5e5e7;
@@ -331,16 +381,34 @@ select {
     box-sizing: border-box;
 }
 
+/* Textarea specific properties */
+textarea {
+    font-family: inherit;
+    line-height: 1.4;
+    resize: vertical;
+    min-height: 60px;
+}
+
 input[type="text"]:hover,
-select:hover {
+select:hover,
+textarea:hover {
     border-color: #7c5ce6;
 }
 
 input[type="text"]:focus,
-select:focus {
+select:focus,
+textarea:focus {
     outline: none;
     border-color: #7c5ce6;
     box-shadow: 0 0 0 3px rgba(124, 92, 230, 0.1);
+}
+
+/* Character counter for textarea */
+.form-text {
+    display: block;
+    margin-top: 4px;
+    font-size: 12px;
+    color: #6b7280;
 }
 
 /* Select specific styling */
@@ -487,7 +555,6 @@ input[type="range"]::-moz-range-thumb:hover {
     flex-shrink: 0;
 }
 
-
 /* Color picker input styling */
 input[type="color"] {
     width: 50px;
@@ -508,66 +575,6 @@ input[type="color"]:focus {
     outline: none;
     border-color: #7c5ce6;
     box-shadow: 0 0 0 3px rgba(124, 92, 230, 0.1);
-}
-
-/* Promotion Rules Icon */
-.promotion-rules-icon {
-    position: absolute;
-    bottom: 12px;
-    right: 12px;
-    width: 24px;
-    height: 24px;
-    background: rgba(255, 255, 255, 0.9);
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    transition: transform 0.2s;
-    z-index: 10;
-}
-
-.promotion-rules-icon:hover {
-    transform: scale(1.1);
-    background: rgba(255, 255, 255, 1);
-}
-
-.promotion-rules-icon svg {
-    width: 16px;
-    height: 16px;
-    fill: #6b7280;
-}
-
-/* Tooltip for rules */
-.rules-tooltip {
-    position: absolute;
-    bottom: 32px;
-    right: 0;
-    background: rgba(31, 41, 55, 0.95);
-    color: white;
-    padding: 8px 12px;
-    border-radius: 6px;
-    font-size: 12px;
-    line-height: 1.4;
-    white-space: normal;
-    width: 200px;
-    opacity: 0;
-    visibility: hidden;
-    transition: opacity 0.2s, visibility 0.2s;
-    pointer-events: none;
-}
-
-.promotion-rules-icon:hover .rules-tooltip {
-    opacity: 1;
-    visibility: visible;
-}
-
-/* Character counter */
-.form-text {
-    display: block;
-    margin-top: 4px;
-    font-size: 12px;
-    color: #6b7280;
 }
 
 /* Save Button */
@@ -621,25 +628,29 @@ input[type="color"]:focus {
 
 /* Default state - no red border */
 select:invalid,
-input[type="text"]:invalid {
+input[type="text"]:invalid,
+textarea:invalid {
     border-color: #e5e5e7;
 }
 
 /* Only show red after user interaction */
 select.touched:invalid,
-input[type="text"].touched:invalid {
+input[type="text"].touched:invalid,
+textarea.touched:invalid {
     border-color: #ef4444;
 }
 
 select:invalid:focus,
-input[type="text"]:invalid:focus {
+input[type="text"]:invalid:focus,
+textarea:invalid:focus {
     border-color: #ef4444;
     box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1);
 }
 
 /* Green border for valid selections */
 select:valid:not([value=""]),
-input[type="text"]:valid:not(:placeholder-shown) {
+input[type="text"]:valid:not(:placeholder-shown),
+textarea:valid:not(:placeholder-shown) {
     border-color: #10b981;
 }
 
@@ -894,4 +905,3 @@ input[type="text"]:valid:not(:placeholder-shown) {
         font-size: 0.75rem;
     }
 }
-
