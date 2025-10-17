@@ -1,4 +1,4 @@
-// card-designer.js - Complete implementation with working Google Places API
+// card-designer.js - Complete implementation with working Google Places API and Promotion Rules
 
 // Global variables for Places API
 let placesSearchTimeout = null;
@@ -33,6 +33,9 @@ function initializeCardDesigner() {
         // Fallback to internal initialization
         initializeBusinessCategories();
     }
+    
+    // Initialize promotion rules
+    initializePromotionRules();
     
     // Show location on card checkbox - Enhanced to show address
     const showLocationCheckbox = document.getElementById('show-location');
@@ -201,6 +204,38 @@ function initializeCardDesigner() {
     
     // Setup form validation
     setupFormValidation();
+}
+
+/**
+ * Initialize promotion rules functionality
+ */
+function initializePromotionRules() {
+    const rulesInput = document.getElementById('promotion-rules');
+    const charCount = document.getElementById('rules-char-count');
+    const rulesIcon = document.getElementById('promotion-rules-icon');
+    const tooltipText = document.getElementById('rules-tooltip-text');
+    
+    if (rulesInput && charCount) {
+        // Character counter and preview update
+        rulesInput.addEventListener('input', (e) => {
+            const length = e.target.value.length;
+            charCount.textContent = length;
+            
+            // Update preview
+            if (length > 0) {
+                if (rulesIcon) {
+                    rulesIcon.style.display = 'flex';
+                }
+                if (tooltipText) {
+                    tooltipText.textContent = e.target.value;
+                }
+            } else {
+                if (rulesIcon) {
+                    rulesIcon.style.display = 'none';
+                }
+            }
+        });
+    }
 }
 
 /**
@@ -760,7 +795,7 @@ async function createNewCard() {
         const businessSubtypes = getSelectedSubtypes();
         console.log('Business type:', businessType, 'Subtypes:', businessSubtypes);
         
-        // Prepare card data with validated fields
+        // Prepare card data with validated fields including promotion rules
         const cardData = {
             restaurant_id: restaurantId,
             display_name: displayName,
@@ -772,6 +807,7 @@ async function createNewCard() {
             show_location_on_card: document.getElementById('show-location')?.checked || false,
             stamps_required: parseInt(stampsRequired),
             reward_text: document.getElementById('reward-text').value || 'Free Item',
+            promotion_rules: document.getElementById('promotion-rules')?.value || null,  // Added promotion rules
             card_color: document.getElementById('bg-color').value,
             text_color: '#FFFFFF',
             business_type: businessType,
@@ -986,6 +1022,27 @@ function loadCardForEditing(design) {
         }
     }
     
+    // Set promotion rules
+    if (design.promotion_rules) {
+        const rulesInput = document.getElementById('promotion-rules');
+        const rulesIcon = document.getElementById('promotion-rules-icon');
+        const tooltipText = document.getElementById('rules-tooltip-text');
+        const charCount = document.getElementById('rules-char-count');
+        
+        if (rulesInput) {
+            rulesInput.value = design.promotion_rules;
+        }
+        if (charCount) {
+            charCount.textContent = design.promotion_rules.length;
+        }
+        if (rulesIcon && design.promotion_rules.length > 0) {
+            rulesIcon.style.display = 'flex';
+        }
+        if (tooltipText) {
+            tooltipText.textContent = design.promotion_rules;
+        }
+    }
+    
     // Set background
     if (design.background_image_url) {
         const bgImagePreview = document.getElementById('bg-image-preview');
@@ -1079,6 +1136,7 @@ async function updateCardDesign(cardId) {
             show_location_on_card: document.getElementById('show-location')?.checked || false,
             stamps_required: parseInt(document.getElementById('stamps-required').value),
             reward_text: document.getElementById('reward-text').value || 'Free Item',
+            promotion_rules: document.getElementById('promotion-rules')?.value || null,  // Added promotion rules
             card_color: document.getElementById('bg-color').value,
             business_type: businessType,
             business_subtypes: businessSubtypes,
@@ -1170,6 +1228,7 @@ function resetCardForm() {
     document.getElementById('show-location').checked = false;
     document.getElementById('stamps-required').value = '10';
     document.getElementById('reward-text').value = 'Free Item';
+    document.getElementById('promotion-rules').value = '';  // Reset promotion rules
     document.getElementById('bg-color').value = '#7c5ce6';
     
     // Clear location dataset
@@ -1194,6 +1253,10 @@ function resetCardForm() {
     document.getElementById('location-subtitle').style.display = 'none';
     document.getElementById('location-subtitle').textContent = '';
     document.getElementById('reward-text-preview').textContent = 'Free Item';
+    
+    // Reset promotion rules preview
+    document.getElementById('rules-char-count').textContent = '0';
+    document.getElementById('promotion-rules-icon').style.display = 'none';
     
     // Hide background image preview
     const bgImagePreview = document.getElementById('bg-image-preview');

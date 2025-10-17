@@ -195,6 +195,14 @@
                                         <span class="reward-label">Reward:</span>
                                         <span class="reward-text" id="reward-text-preview">Free Item</span>
                                     </div>
+                                    <div class="promotion-rules-icon" id="promotion-rules-icon" style="display: none;">
+                                        <svg width="20" height="20" fill="currentColor" viewBox="0 0 24 24">
+                                            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/>
+                                        </svg>
+                                        <div class="rules-tooltip" id="rules-tooltip">
+                                            <span id="rules-tooltip-text"></span>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -300,6 +308,19 @@
                         <div class="control-group">
                             <label for="reward-text">Reward Text</label>
                             <input type="text" id="reward-text" placeholder="e.g., Free Coffee" value="Free Item">
+                        </div>
+                        <div class="control-group">
+                            <label for="promotion-rules">Terms & Conditions <span class="optional-text">(optional)</span></label>
+                            <textarea 
+                                id="promotion-rules" 
+                                rows="3" 
+                                maxlength="200"
+                                placeholder="e.g., Valid on purchases over €15, Mon-Fri 12-2pm only, Excludes alcohol..."
+                                style="resize: vertical; min-height: 60px;"
+                            ></textarea>
+                            <small class="form-text">
+                                <span id="rules-char-count">0</span>/200 characters - Displayed as (i) icon on card
+                            </small>
                         </div>
                         
                         <button class="save-btn" id="create-card-btn">
