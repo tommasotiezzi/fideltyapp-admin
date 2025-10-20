@@ -6,26 +6,26 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_KEY
 );
 
-export default async function handler(req, res) {
-  const { cardNumber } = req.query;
+module.exports = async (req, res) => {
+  const { id } = req.query; // Using UUID for security in URL
   
-  if (!cardNumber) {
-    return res.status(400).json({ error: 'Card number required' });
+  if (!id) {
+    return res.status(400).json({ error: 'Card ID required' });
   }
 
   try {
-    // Get card data from Supabase
+    // Get card data using UUID
     const { data: card, error } = await supabase
       .from('customer_cards')
       .select('*')
-      .eq('card_number', parseInt(cardNumber))
+      .eq('id', id)
       .single();
       
     if (error || !card) {
       return res.status(404).json({ error: 'Card not found' });
     }
 
-    // Create pass using PKPass.from (the proper way)
+    // Create pass using PKPass.from with model object
     const pass = await PKPass.from({
       model: {
         "pass.json": Buffer.from(JSON.stringify({
@@ -40,7 +40,7 @@ export default async function handler(req, res) {
           
           barcodes: [{
             format: "PKBarcodeFormatQR",
-            message: card.id,
+            message: card.id,  // UUID - matches your Flutter scanner!
             messageEncoding: "iso-8859-1"
           }],
           
@@ -48,7 +48,7 @@ export default async function handler(req, res) {
             headerFields: [{
               key: "cardNumber",
               label: "CARD",
-              value: `#${card.card_number}`
+              value: `#${card.card_number}`  // Shows "#107" visually
             }],
             primaryFields: [{
               key: "stamps",
@@ -64,20 +64,17 @@ export default async function handler(req, res) {
         }))
       },
       certificates: {
-        wwdr: Buffer.from(process.env.APPLE_WWDR_CERT, 'base64').toString('utf8'),
-        signerCert: Buffer.from(process.env.APPLE_SIGNER_CERT, 'base64').toString('utf8'),
-        signerKey: Buffer.from(process.env.APPLE_SIGNER_KEY, 'base64').toString('utf8')
+        wwdr: Buffer.from(process.env.APPLE_WWDR_CERT, 'base64'),
+        signerCert: Buffer.from(process.env.APPLE_SIGNER_CERT, 'base64'),
+        signerKey: Buffer.from(process.env.APPLE_SIGNER_KEY, 'base64')
       }
     });
 
     const buffer = pass.getAsBuffer();
     
-    // CRITICAL: Set proper headers for iOS
     res.setHeader('Content-Type', 'application/vnd.apple.pkpass');
-    res.setHeader('Content-Disposition', `inline; filename="${card.card_number}.pkpass"`);
-    res.setHeader('Content-Length', buffer.length);
-    
-    res.status(200).send(buffer);
+    res.setHeader('Content-Disposition', `inline; filename="loyaly-${card.card_number}.pkpass"`);
+    res.send(buffer);
     
   } catch (error) {
     console.error('Pass generation error:', error);
@@ -86,4 +83,4 @@ export default async function handler(req, res) {
       details: error.message
     });
   }
-}
+};
