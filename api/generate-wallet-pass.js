@@ -25,69 +25,59 @@ export default async function handler(req, res) {
       return res.status(404).json({ error: 'Card not found' });
     }
 
-    // Create the pass.json structure
-    const passJson = {
-      formatVersion: 1,
-      passTypeIdentifier: "pass.eu.loyaly.loyaly",
-      serialNumber: String(card.card_number),
-      teamIdentifier: "8U9RFQ4C56",
-      organizationName: card.display_name,
-      description: `${card.display_name} Loyalty Card`,
-      foregroundColor: card.text_color || "#FFFFFF",
-      backgroundColor: card.card_color || "#7c5ce6",
-      labelColor: "#FFFFFF",
-      
-      // Barcode with UUID for your scanner
-      barcodes: [{
-        format: "PKBarcodeFormatQR",
-        message: card.id,  // UUID for your scanner
-        messageEncoding: "iso-8859-1"
-      }],
-      
-      // Store card type (REQUIRED for type)
-      storeCard: {
-        headerFields: [{
-          key: "cardNumber",
-          label: "CARD",
-          value: `#${card.card_number}`
-        }],
-        primaryFields: [{
-          key: "stamps",
-          label: "STAMPS",
-          value: `${card.current_stamps}/${card.stamps_required}`
-        }],
-        secondaryFields: [{
-          key: "reward",
-          label: "REWARD",
-          value: card.reward_text
-        }],
-        auxiliaryFields: [{
-          key: "location",
-          label: "LOCATION",
-          value: card.location_name
-        }]
-      }
-    };
-
-    // Create pass with the model structure
-    const pass = new PKPass(
-      {
-        // This is the "model" - minimum required is pass.json
-        "pass.json": Buffer.from(JSON.stringify(passJson))
+    // Create pass using PKPass.from (the proper way)
+    const pass = await PKPass.from({
+      model: {
+        "pass.json": Buffer.from(JSON.stringify({
+          formatVersion: 1,
+          passTypeIdentifier: "pass.eu.loyaly.loyaly",
+          serialNumber: String(card.card_number),
+          teamIdentifier: "8U9RFQ4C56",
+          organizationName: card.display_name,
+          description: `${card.display_name} Loyalty Card`,
+          foregroundColor: card.text_color || "#FFFFFF",
+          backgroundColor: card.card_color || "#7c5ce6",
+          
+          barcodes: [{
+            format: "PKBarcodeFormatQR",
+            message: card.id,
+            messageEncoding: "iso-8859-1"
+          }],
+          
+          storeCard: {
+            headerFields: [{
+              key: "cardNumber",
+              label: "CARD",
+              value: `#${card.card_number}`
+            }],
+            primaryFields: [{
+              key: "stamps",
+              label: "STAMPS",
+              value: `${card.current_stamps}/${card.stamps_required}`
+            }],
+            secondaryFields: [{
+              key: "reward",
+              label: "REWARD",
+              value: card.reward_text
+            }]
+          }
+        }))
       },
-      {
-        // Certificates - decode from base64
-        wwdr: Buffer.from(process.env.APPLE_WWDR_CERT, 'base64').toString(),
-        signerCert: Buffer.from(process.env.APPLE_SIGNER_CERT, 'base64').toString(),
-        signerKey: Buffer.from(process.env.APPLE_SIGNER_KEY, 'base64').toString()
+      certificates: {
+        wwdr: Buffer.from(process.env.APPLE_WWDR_CERT, 'base64').toString('utf8'),
+        signerCert: Buffer.from(process.env.APPLE_SIGNER_CERT, 'base64').toString('utf8'),
+        signerKey: Buffer.from(process.env.APPLE_SIGNER_KEY, 'base64').toString('utf8')
       }
-    );
+    });
 
     const buffer = pass.getAsBuffer();
     
+    // CRITICAL: Set proper headers for iOS
     res.setHeader('Content-Type', 'application/vnd.apple.pkpass');
-    res.setHeader('Content-Disposition', `attachment; filename=loyaly-${cardNumber}.pkpass`);
-    res.send(buffer);
+    res.setHeader('Content-Disposition', `inline; filename="${card.card_number}.pkpass"`);
+    res.setHeader('Content-Length', buffer.length);
+    
+    res.status(200).send(buffer);
     
   } catch (error) {
     console.error('Pass generation error:', error);
