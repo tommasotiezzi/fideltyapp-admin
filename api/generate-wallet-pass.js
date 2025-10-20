@@ -30,24 +30,26 @@ export default async function handler(req, res) {
         formatVersion: 1,
         passTypeIdentifier: "pass.eu.loyaly.loyaly",
         serialNumber: String(card.card_number),
-        teamIdentifier: "8U9RFQ4C56",  // Your Team ID
+        teamIdentifier: "8U9RFQ4C56",
         organizationName: card.display_name,
         description: `${card.display_name} Loyalty Card`,
         foregroundColor: card.text_color || "#FFFFFF",
         backgroundColor: card.card_color || "#7c5ce6",
+        labelColor: "#FFFFFF",  // Add this
         
-        // QR contains the UUID that your scanner expects
-        barcode: {
+        // Add the barcode properly
+        barcodes: [{
           format: "PKBarcodeFormatQR",
-          message: card.id,  // The UUID for your QR scanner
+          message: card.id,
           messageEncoding: "iso-8859-1"
-        },
+        }],
         
+        // IMPORTANT: Specify the pass type!
         storeCard: {
           headerFields: [{
             key: "cardNumber",
             label: "CARD",
-            value: `#${card.card_number}`  // Shows "#107" visually
+            value: `#${card.card_number}`
           }],
           primaryFields: [{
             key: "stamps",
@@ -61,19 +63,21 @@ export default async function handler(req, res) {
           }],
           auxiliaryFields: [{
             key: "location",
-            label: "",
+            label: "LOCATION",
             value: card.location_name
           }]
         }
       },
       certificates: {
-        wwdr: Buffer.from(process.env.APPLE_WWDR_CERT, 'base64'),
-        signerCert: Buffer.from(process.env.APPLE_SIGNER_CERT, 'base64'),
-        signerKey: Buffer.from(process.env.APPLE_SIGNER_KEY, 'base64')
-      }
+        wwdr: Buffer.from(process.env.APPLE_WWDR_CERT, 'base64').toString('utf8'),
+        signerCert: Buffer.from(process.env.APPLE_SIGNER_CERT, 'base64').toString('utf8'),
+        signerKey: Buffer.from(process.env.APPLE_SIGNER_KEY, 'base64').toString('utf8')
+      },
+      // Add this to specify we're using raw certificates
+      rawCertificates: true
     });
 
-    const buffer = pass.getAsBuffer();
+    const buffer = await pass.getAsBuffer();
     
     res.setHeader('Content-Type', 'application/vnd.apple.pkpass');
     res.setHeader('Content-Disposition', `attachment; filename=loyaly-${cardNumber}.pkpass`);
@@ -81,8 +85,9 @@ export default async function handler(req, res) {
     
   } catch (error) {
     console.error('Pass generation error:', error);
-    res.status(500).json({ error: 'Failed to generate pass', details: error.message });
+    res.status(500).json({ 
+      error: 'Failed to generate pass', 
+      details: error.message
+    });
   }
 }
-
-
