@@ -6,15 +6,20 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_KEY
 );
 
+// Create a simple 1x1 pixel transparent PNG as placeholder
+const createPlaceholderIcon = () => {
+  const base64 = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==';
+  return Buffer.from(base64, 'base64');
+};
+
 module.exports = async (req, res) => {
-  const { id } = req.query; // Using UUID for secure URL
+  const { id } = req.query;
   
   if (!id) {
     return res.status(400).json({ error: 'Card ID required' });
   }
 
   try {
-    // Get card data using UUID
     const { data: card, error } = await supabase
       .from('customer_cards')
       .select('*')
@@ -25,7 +30,6 @@ module.exports = async (req, res) => {
       return res.status(404).json({ error: 'Card not found' });
     }
 
-    // Create the pass JSON
     const passJson = {
       formatVersion: 1,
       passTypeIdentifier: "pass.eu.loyaly.loyaly",
@@ -38,7 +42,7 @@ module.exports = async (req, res) => {
       
       barcodes: [{
         format: "PKBarcodeFormatQR",
-        message: card.id,  // UUID for your scanner
+        message: card.id,
         messageEncoding: "iso-8859-1"
       }],
       
@@ -61,10 +65,13 @@ module.exports = async (req, res) => {
       }
     };
 
-    // Use PKPass constructor directly (not .from())
+    // Create pass with icon files
     const pass = new PKPass(
       {
-        "pass.json": Buffer.from(JSON.stringify(passJson))
+        "pass.json": Buffer.from(JSON.stringify(passJson)),
+        "icon.png": createPlaceholderIcon(),
+        "icon@2x.png": createPlaceholderIcon(),
+        "icon@3x.png": createPlaceholderIcon()
       },
       {
         wwdr: Buffer.from(process.env.APPLE_WWDR_CERT, 'base64').toString(),
@@ -75,10 +82,8 @@ module.exports = async (req, res) => {
 
     const buffer = pass.getAsBuffer();
     
-    // Critical for iPhone: use inline disposition
     res.setHeader('Content-Type', 'application/vnd.apple.pkpass');
     res.setHeader('Content-Disposition', `inline; filename="loyaly-${card.card_number}.pkpass"`);
-    res.setHeader('Content-Length', buffer.length);
     res.send(buffer);
     
   } catch (error) {
