@@ -7,7 +7,7 @@ const supabase = createClient(
 );
 
 module.exports = async (req, res) => {
-  const { id } = req.query; // Using UUID for security in URL
+  const { id } = req.query; // Using UUID for secure URL
   
   if (!id) {
     return res.status(400).json({ error: 'Card ID required' });
@@ -25,55 +25,60 @@ module.exports = async (req, res) => {
       return res.status(404).json({ error: 'Card not found' });
     }
 
-    // Create pass using PKPass.from with model object
-    const pass = await PKPass.from({
-      model: {
-        "pass.json": Buffer.from(JSON.stringify({
-          formatVersion: 1,
-          passTypeIdentifier: "pass.eu.loyaly.loyaly",
-          serialNumber: String(card.card_number),
-          teamIdentifier: "8U9RFQ4C56",
-          organizationName: card.display_name,
-          description: `${card.display_name} Loyalty Card`,
-          foregroundColor: card.text_color || "#FFFFFF",
-          backgroundColor: card.card_color || "#7c5ce6",
-          
-          barcodes: [{
-            format: "PKBarcodeFormatQR",
-            message: card.id,  // UUID - matches your Flutter scanner!
-            messageEncoding: "iso-8859-1"
-          }],
-          
-          storeCard: {
-            headerFields: [{
-              key: "cardNumber",
-              label: "CARD",
-              value: `#${card.card_number}`  // Shows "#107" visually
-            }],
-            primaryFields: [{
-              key: "stamps",
-              label: "STAMPS",
-              value: `${card.current_stamps}/${card.stamps_required}`
-            }],
-            secondaryFields: [{
-              key: "reward",
-              label: "REWARD",
-              value: card.reward_text
-            }]
-          }
-        }))
-      },
-      certificates: {
-        wwdr: Buffer.from(process.env.APPLE_WWDR_CERT, 'base64'),
-        signerCert: Buffer.from(process.env.APPLE_SIGNER_CERT, 'base64'),
-        signerKey: Buffer.from(process.env.APPLE_SIGNER_KEY, 'base64')
+    // Create the pass JSON
+    const passJson = {
+      formatVersion: 1,
+      passTypeIdentifier: "pass.eu.loyaly.loyaly",
+      serialNumber: String(card.card_number),
+      teamIdentifier: "8U9RFQ4C56",
+      organizationName: card.display_name,
+      description: `${card.display_name} Loyalty Card`,
+      foregroundColor: card.text_color || "#FFFFFF",
+      backgroundColor: card.card_color || "#7c5ce6",
+      
+      barcodes: [{
+        format: "PKBarcodeFormatQR",
+        message: card.id,  // UUID for your scanner
+        messageEncoding: "iso-8859-1"
+      }],
+      
+      storeCard: {
+        headerFields: [{
+          key: "cardNumber",
+          label: "CARD",
+          value: `#${card.card_number}`
+        }],
+        primaryFields: [{
+          key: "stamps",
+          label: "STAMPS",
+          value: `${card.current_stamps}/${card.stamps_required}`
+        }],
+        secondaryFields: [{
+          key: "reward",
+          label: "REWARD",
+          value: card.reward_text
+        }]
       }
-    });
+    };
+
+    // Use PKPass constructor directly (not .from())
+    const pass = new PKPass(
+      {
+        "pass.json": Buffer.from(JSON.stringify(passJson))
+      },
+      {
+        wwdr: Buffer.from(process.env.APPLE_WWDR_CERT, 'base64').toString(),
+        signerCert: Buffer.from(process.env.APPLE_SIGNER_CERT, 'base64').toString(),
+        signerKey: Buffer.from(process.env.APPLE_SIGNER_KEY, 'base64').toString()
+      }
+    );
 
     const buffer = pass.getAsBuffer();
     
+    // Critical for iPhone: use inline disposition
     res.setHeader('Content-Type', 'application/vnd.apple.pkpass');
     res.setHeader('Content-Disposition', `inline; filename="loyaly-${card.card_number}.pkpass"`);
+    res.setHeader('Content-Length', buffer.length);
     res.send(buffer);
     
   } catch (error) {
