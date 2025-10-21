@@ -1,6 +1,5 @@
 const { PKPass } = require("passkit-generator");
 const { createClient } = require('@supabase/supabase-js');
-
 const supabase = createClient(
   process.env.SUPABASE_URL,
   process.env.SUPABASE_SERVICE_KEY
@@ -49,18 +48,43 @@ module.exports = async (req, res) => {
       storeCard: {
         headerFields: [{
           key: "cardNumber",
-          label: "CARD",
+          label: "CARD NUMBER",
           value: `#${card.card_number}`
         }],
         primaryFields: [{
-          key: "stamps",
-          label: "STAMPS",
-          value: `${card.current_stamps}/${card.stamps_required}`
+          key: "businessName",
+          label: card.display_name.toUpperCase(),
+          value: "LOYALTY CARD"
         }],
         secondaryFields: [{
           key: "reward",
           label: "REWARD",
           value: card.reward_text
+        }],
+        auxiliaryFields: [{
+          key: "rules",
+          label: "HOW IT WORKS",
+          value: card.promotion_rules || "Collect stamps with every purchase"
+        }],
+        backFields: [{
+          key: "disclaimer",
+          label: "IMPORTANT",
+          value: "Use this card to collect stamps. Navigate to the Loyaly app to see your current stamp count and redeem rewards."
+        },
+        {
+          key: "business",
+          label: "BUSINESS",
+          value: card.display_name
+        },
+        {
+          key: "rewardDetails",
+          label: "REWARD",
+          value: card.reward_text
+        },
+        {
+          key: "promotionRules",
+          label: "PROMOTION RULES",
+          value: card.promotion_rules || "Collect stamps with every purchase to earn your reward."
         }]
       }
     };
@@ -94,4 +118,3 @@ module.exports = async (req, res) => {
     });
   }
 };
-
