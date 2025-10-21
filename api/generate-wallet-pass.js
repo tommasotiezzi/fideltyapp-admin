@@ -83,14 +83,14 @@ module.exports = async (req, res) => {
       
       storeCard: {
         headerFields: [{
-          key: "businessName",
-          label: "LOYALY CARD",
-          value: card.display_name
-        }],
-        primaryFields: [{
           key: "cardNumber",
           label: "CARD NUMBER",
           value: `#${card.card_number}`
+        }],
+        primaryFields: [{
+          key: "businessName",
+          label: "LOYALY CARD",
+          value: card.display_name
         }],
         secondaryFields: [{
           key: "reward",
