@@ -29,13 +29,49 @@ module.exports = async (req, res) => {
       return res.status(404).json({ error: 'Card not found' });
     }
 
+    // Build auxiliary fields only if promotion_rules exists
+    const auxiliaryFields = [];
+    if (card.promotion_rules) {
+      auxiliaryFields.push({
+        key: "rules",
+        label: "HOW IT WORKS",
+        value: card.promotion_rules
+      });
+    }
+
+    // Build back fields
+    const backFields = [{
+      key: "disclaimer",
+      label: "IMPORTANT",
+      value: "Use this card to collect stamps. Navigate to the Loyaly app to see your current stamp count and redeem rewards."
+    },
+    {
+      key: "business",
+      label: "BUSINESS",
+      value: card.display_name
+    },
+    {
+      key: "rewardDetails",
+      label: "REWARD",
+      value: card.reward_text
+    }];
+
+    // Add promotion rules to back only if they exist
+    if (card.promotion_rules) {
+      backFields.push({
+        key: "promotionRules",
+        label: "PROMOTION RULES",
+        value: card.promotion_rules
+      });
+    }
+
     const passJson = {
       formatVersion: 1,
       passTypeIdentifier: "pass.eu.loyaly.loyaly",
       serialNumber: String(card.card_number),
       teamIdentifier: "8U9RFQ4C56",
       organizationName: card.display_name,
-      description: `${card.display_name} Loyalty Card`,
+      description: `${card.display_name} Loyaly Card`,
       foregroundColor: card.text_color || "#FFFFFF",
       backgroundColor: card.card_color || "#7c5ce6",
       
@@ -47,45 +83,27 @@ module.exports = async (req, res) => {
       
       storeCard: {
         headerFields: [{
+          key: "businessName",
+          label: "LOYALY CARD",
+          value: card.display_name
+        }],
+        primaryFields: [{
           key: "cardNumber",
           label: "CARD NUMBER",
           value: `#${card.card_number}`
-        }],
-        primaryFields: [{
-          key: "businessName",
-          label: card.display_name.toUpperCase(),
-          value: "LOYALTY CARD"
         }],
         secondaryFields: [{
           key: "reward",
           label: "REWARD",
           value: card.reward_text
-        }],
-        auxiliaryFields: [{
-          key: "rules",
+        },
+        {
+          key: "howTo",
           label: "HOW IT WORKS",
-          value: card.promotion_rules || "Collect stamps with every purchase"
+          value: "Use pass to collect stamps. Check app for status and redeem."
         }],
-        backFields: [{
-          key: "disclaimer",
-          label: "IMPORTANT",
-          value: "Use this card to collect stamps. Navigate to the Loyaly app to see your current stamp count and redeem rewards."
-        },
-        {
-          key: "business",
-          label: "BUSINESS",
-          value: card.display_name
-        },
-        {
-          key: "rewardDetails",
-          label: "REWARD",
-          value: card.reward_text
-        },
-        {
-          key: "promotionRules",
-          label: "PROMOTION RULES",
-          value: card.promotion_rules || "Collect stamps with every purchase to earn your reward."
-        }]
+        auxiliaryFields: auxiliaryFields,
+        backFields: backFields
       }
     };
 
